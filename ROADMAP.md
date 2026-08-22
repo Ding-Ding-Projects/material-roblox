@@ -33,6 +33,25 @@ with the reason kept so a decision never reads as an oversight.
       feature documentation set, release + Pages workflows, line counter,
       social-preview generator with byte-identity assertion
 
+## Phase 1.5 — Post-release hardening (2026-08-22, in flight)
+
+Four parallel lanes opened immediately after the first releases
+(`v1.0.0-build.7`, `v1.0.0-build.8`). Everything here is unticked on purpose:
+a row moves to `[x]` only when its lane's work is merged and its evidence
+exists, never because the lane started.
+
+- [ ] **Tests lane** — automated unit + interaction suites for the Phase 1
+      modules, wired so their verdicts are reported (never gating CI, per the
+      standing no-gate decision)
+- [ ] **Captures lane** — real built-artifact screenshot evidence for every
+      user-facing surface; nothing fake published meanwhile
+- [ ] **Polish fixes lane** — the fix batch from the post-release adversarial
+      review, verified against the built app
+- [ ] **Wiki/docs lane** — `docs/wiki/` five-page mirror authored in-repo;
+      remains unticked until the wiki is initialized in the web UI and the
+      pages are actually copied up (the wiki remote 404s until the first
+      page exists — see `docs/wiki/README.md`)
+
 ## Phase 2 — Verification debt (deliberate, named)
 
 The ultra-speed delivery pass shipped Phase 1 without tests or captures. That
