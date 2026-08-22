@@ -19,6 +19,7 @@ import {
   announce, emptyState, errorState, formatNumber, thumbImg,
 } from '../cards.js';
 import { createSearchBar } from '../searchbar.js';
+import { rowMatcher, regexErrorMessage } from '../safe-regex.js';
 import {
   bulkBarShell, createSelection, exportButton, selectAllControl,
   updateBulkCount,
@@ -56,6 +57,9 @@ async function render(rootEl) {
     total: null,
     /** Rows already rendered; pages can be shorter than 100. */
     painted: 0,
+    /** Local filter state: predicate over loaded rows, or null when inactive. */
+    filterMatcher: null,
+    filterQuery: '',
   };
 
   /* target + type controls */
@@ -65,6 +69,20 @@ async function render(rootEl) {
     historyKey: 'inventory',
     submitLabel: tr('roblox.inv.load', 'Load inventory', '載入物品欄'),
     onQuery: (q) => switchOwner(q),
+  });
+
+  /* local item filter — regex-capable, applied client-side to loaded rows.
+     The owner lookup above stays server-side (Roblox resolves users by exact
+     name or id), so this second bar is what honors regex mode here. An
+     invalid pattern keeps the previous view and reports inline, never throws. */
+  const filterErr = el('p', { class: 'rbx-muted', role: 'alert', hidden: true });
+  const itemFilter = await createSearchBar({
+    placeholder: tr('roblox.inv.filterPlaceholder', 'Filter loaded items…', '篩選已載入物品……'),
+    ariaLabel: tr('roblox.inv.filterLabel', 'Filter the loaded items locally', '喺本地篩選已載入物品'),
+    historyKey: 'inventory-filter',
+    submitLabel: tr('roblox.inv.filterApply', 'Filter', '篩選'),
+    supportsRegex: true,
+    onQuery: (q, ctx) => applyLocalFilter(q, ctx),
   });
 
   const typeSelect = el('select', {
@@ -125,8 +143,60 @@ async function render(rootEl) {
       'Browse an account’s public inventory by asset type. Private inventories stay private — see the note when one refuses.',
       '按物品類型瀏覽公開物品欄。私人物品欄會保持私人 — 拒絕嗰陣會有說明。')),
     bar.root,
+    el('div', { class: 'rbx-inv__filter' }, itemFilter.root, filterErr),
     el('div', { class: 'rbx-toolbar' }, typeSelect, bulk.root),
     listWrap, sentinel, statusLine);
+
+  /** Fields an inventory row is filtered against. */
+  const itemFields = (r) => [r.name, r.serialNumber, r.id];
+
+  function clearFilterError() {
+    filterErr.textContent = '';
+    filterErr.hidden = true;
+  }
+
+  /** Commit a new local filter; a bad pattern keeps the last good one. */
+  function applyLocalFilter(q, ctx) {
+    clearFilterError();
+    const raw = String(q ?? '').trim();
+    const wantRegex = ctx && ctx.mode === 'regex';
+    const flags = ctx && typeof ctx.flags === 'string' ? ctx.flags : '';
+
+    if (!raw) {
+      state.filterQuery = '';
+      state.filterMatcher = null;
+      if (state.rows.length) paint(false);
+      return;
+    }
+    const built = rowMatcher(raw, { mode: wantRegex ? 'regex' : 'plain', flags }, itemFields);
+    if (!built.ok) {
+      filterErr.textContent = regexErrorMessage(built.error, tr);
+      filterErr.hidden = false;
+      if (state.rows.length) paint(false); // keep the previous view on screen
+      return;
+    }
+    // Commit even before anything loads: the filter shown in the input is
+    // then exactly the one applied whenever a list loads.
+    state.filterQuery = raw;
+    state.filterMatcher = built.test;
+    if (state.rows.length) paint(false);
+  }
+
+  /** Honest note when the local filter matches nothing that was loaded. */
+  function filterEmptyNote() {
+    return el('div', { class: 'rbx-card rbx-home__card', role: 'status' },
+      el('p', {}, tr('roblox.inv.filterNoneTitle',
+        `No loaded item matches "${state.filterQuery}".`,
+        `已載入嘅物品冇一件符合「${state.filterQuery}」。`)),
+      el('div', { class: 'rbx-actions' },
+        el('button', {
+          type: 'button', class: 'mrb-btn text',
+          onclick: () => {
+            itemFilter.setValue('');
+            applyLocalFilter('', null);
+          },
+        }, tr('roblox.inv.filterClear', 'Clear filter', '清除篩選'))));
+  }
 
   /* infinite scroll */
   const io = new IntersectionObserver((entries) => {
@@ -227,12 +297,18 @@ async function render(rootEl) {
   }
 
   async function paint(reset) {
-    if (reset) { listWrap.textContent = ''; state.painted = 0; }
+    // With a local filter active the list rebuilds from the matching subset;
+    // without one the append-only incremental path is unchanged.
+    const filtering = Boolean(state.filterMatcher);
+    if (reset || filtering) { listWrap.textContent = ''; state.painted = 0; }
+    const visible = filtering ? state.rows.filter((r) => state.filterMatcher(r)) : state.rows;
     const frag = document.createDocumentFragment();
     // Append only rows that are not on screen yet — pages may be shorter
     // than 100, so an index-based tail would duplicate earlier rows.
-    const fresh = reset ? state.rows : state.rows.slice(state.painted);
-    const thumbs = await batchThumbnails(fresh.map((r) => ({ type: 'Asset', targetId: r.id, size: '150x150' })));
+    const fresh = reset || filtering ? visible : state.rows.slice(state.painted);
+    const thumbs = fresh.length
+      ? await batchThumbnails(fresh.map((r) => ({ type: 'Asset', targetId: r.id, size: '150x150' })))
+      : new Map();
 
     for (const r of fresh) {
       const cb = state.sel.makeCheckbox(r.id, tr('roblox.inv.rowSelect', `Select ${r.name || r.id}`, `揀 ${r.name || r.id}`));
@@ -257,12 +333,20 @@ async function render(rootEl) {
       frag.appendChild(row);
     }
     listWrap.appendChild(frag);
+    if (filtering && !visible.length && state.rows.length) {
+      listWrap.appendChild(filterEmptyNote());
+    }
     state.painted = state.rows.length;
 
     // Honest total: the API does not return one; say unknown rather than guess.
-    statusLine.textContent = tr('roblox.inv.loadedStatus',
-      `${formatNumber(state.rows.length)} loaded${state.ended ? ' — end of list' : ''} · total: ${state.total != null ? formatNumber(state.total) : 'unknown'}`,
-      `已載入 ${formatNumber(state.rows.length)}${state.ended ? ' — 到底' : ''} · 總數：${state.total != null ? formatNumber(state.total) : '不明'}`);
+    // With a filter active, shown-vs-loaded are reported separately.
+    statusLine.textContent = filtering
+      ? tr('roblox.inv.filteredStatus',
+        `${formatNumber(visible.length)} of ${formatNumber(state.rows.length)} loaded match this filter${state.ended ? ' — end of list' : ''}`,
+        `已載入 ${formatNumber(state.rows.length)} 項之中有 ${formatNumber(visible.length)} 項符合篩選${state.ended ? ' — 到底' : ''}`)
+      : tr('roblox.inv.loadedStatus',
+        `${formatNumber(state.rows.length)} loaded${state.ended ? ' — end of list' : ''} · total: ${state.total != null ? formatNumber(state.total) : 'unknown'}`,
+        `已載入 ${formatNumber(state.rows.length)}${state.ended ? ' — 到底' : ''} · 總數：${state.total != null ? formatNumber(state.total) : '不明'}`);
     if (reset) {
       announce(tr('roblox.inv.loadedAnnounce', `Inventory loaded: ${state.rows.length} items`, `物品欄已載入：${state.rows.length} 件`));
     }

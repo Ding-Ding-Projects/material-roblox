@@ -309,14 +309,80 @@ const TROUBLESHOOT = {
 
 const SESSIONS_KEY = 'ollamaChatSessions';
 
-export function listSessions() {
-  return store.get(SESSIONS_KEY, []);
+/** Cap on how many sessions are persisted at all. */
+const MAX_SESSIONS = 200;
+/** Most recent messages per session kept in localStorage; older ones stay in memory only. */
+const PERSISTED_MESSAGES = 200;
+/** Rapid turns batch into one localStorage write behind this timer. */
+const SAVE_DEBOUNCE_MS = 400;
+
+/**
+ * In-memory canonical copy of the sessions.
+ *
+ * Reads used to come straight from localStorage, which is correct only while
+ * every mutation writes synchronously. Persistence is now debounced, so the
+ * cache is the source of truth during a run and localStorage is its
+ * (bounded, delayed) mirror; without the cache a second turn inside the
+ * debounce window would read stale state and drop messages.
+ */
+let sessionsCache = null;
+
+/** Flush any pending debounced write immediately (used before unload). */
+function flushSessions() {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = 0;
+    persistSessions();
+  }
 }
-function saveSessions(sessions, label) {
-  store.set(SESSIONS_KEY, sessions.slice(0, 200));
+
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  // A turn that lands inside the debounce window must not be lost to a
+  // close/reload; best-effort, same contract as the timer itself.
+  window.addEventListener('pagehide', flushSessions);
+}
+
+function loadSessions() {
+  if (!sessionsCache) {
+    const stored = store.get(SESSIONS_KEY, []);
+    sessionsCache = Array.isArray(stored) ? stored : [];
+  }
+  return sessionsCache;
+}
+
+export function listSessions() {
+  return loadSessions();
+}
+
+/**
+ * localStorage shape for one session: metadata intact, transcript trimmed to
+ * the most recent {@link PERSISTED_MESSAGES} entries.
+ */
+function persistedSession(s) {
+  if (!s || !Array.isArray(s.messages) || s.messages.length <= PERSISTED_MESSAGES) return s;
+  return { ...s, messages: s.messages.slice(-PERSISTED_MESSAGES), messagesTrimmedTo: PERSISTED_MESSAGES };
+}
+
+function persistSessions() {
+  const sessions = loadSessions();
+  store.set(SESSIONS_KEY, sessions.slice(0, MAX_SESSIONS).map(persistedSession));
   peer('./history.js').then((m) => {
-    if (m?.history?.record) m.history.record({ kind: 'settings', label: label || 'Chat sessions changed', snapshot: { count: sessions.length } });
+    if (m?.history?.record) m.history.record({ kind: 'settings', label: lastSaveLabel || 'Chat sessions changed', snapshot: { count: sessions.length } });
   });
+}
+
+let saveTimer = 0;
+let lastSaveLabel = '';
+
+function saveSessions(sessions, label) {
+  // Canonical cache updates synchronously; the localStorage write batches.
+  sessionsCache = Array.isArray(sessions) ? sessions : sessionsCache;
+  lastSaveLabel = label || '';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveTimer = 0;
+    persistSessions();
+  }, SAVE_DEBOUNCE_MS);
 }
 
 function newSession(model) {
@@ -1225,18 +1291,30 @@ function rerenderStreamingBubble() {
 }
 
 function exportSessionRedacted(s) {
+  const liveCount = Array.isArray(s.messages) ? s.messages.length : 0;
+  /* The export reads the LIVE in-memory session, so it carries everything the
+     run still holds; only the localStorage mirror is capped. When the two
+     differ, say so instead of letting the reader assume they match. */
+  const persistenceNote = liveCount > PERSISTED_MESSAGES
+    ? tt(
+      `This chat holds ${liveCount} messages in memory this run; localStorage keeps only the most recent ${PERSISTED_MESSAGES} per chat, so reloading restores the trimmed set.`,
+      `呢個對話本次運行喺記憶體有 ${liveCount} 個訊息；localStorage 每個對話只保留最近 ${PERSISTED_MESSAGES} 個，重新載入後會係裁剪後嗰份。`,
+    )
+    : '';
   const dump = {
     kind: 'material-roblox-chat-export',
     redaction: tt(
       'Attachments were never supported in this build; nothing attachment-shaped exists to omit. Secrets, environment values and raw API payloads are excluded.',
       '本版本從不支援附件；冇附件資料需要省略。機密、環境變數與原始 API 負載一律排除。',
     ),
+    ...(persistenceNote ? { persistenceNote } : {}),
     exportedAt: new Date().toISOString(),
     session: {
       title: s.title,
       model: s.model,
       system: s.system || '',
       params: s.params,
+      messageCount: liveCount,
       messages: s.messages.map((m) => ({ role: m.role, content: m.content })),
     },
   };

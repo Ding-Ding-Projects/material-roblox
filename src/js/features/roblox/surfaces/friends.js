@@ -21,6 +21,7 @@ import {
   paginationControls, presenceDot, thumbImg,
 } from '../cards.js';
 import { createSearchBar } from '../searchbar.js';
+import { rowMatcher, regexErrorMessage } from '../safe-regex.js';
 import {
   bulkBarShell, createSelection, exportButton, runDestructiveBatch,
   selectAllControl, updateBulkCount,
@@ -59,6 +60,9 @@ async function render(rootEl) {
     loading: false,
     presenceMap: new Map(),
     sel: createSelection(),
+    /** Local filter state: predicate over loaded rows, or null when inactive. */
+    filterMatcher: null,
+    filterQuery: '',
   };
 
   if (state.target) store.remove('roblox:pendingFriendsTarget');
@@ -199,6 +203,21 @@ async function render(rootEl) {
   }, tr('roblox.friends.removeSaved', 'Remove from saved', '從收藏移除'));
   bulk.actions.appendChild(removeSavedBtn);
 
+  /* local result filter — regex-capable, applied client-side to loaded rows.
+     The server list endpoints take no query, so filtering here is the only
+     kind that exists; an invalid pattern keeps the previous view and shows
+     an inline error instead of throwing or blanking the list. */
+  const filterErr = el('p', { class: 'rbx-muted', role: 'alert', hidden: true });
+  const filterBar = await createSearchBar({
+    placeholder: tr('roblox.friends.filterPlaceholder', 'Filter loaded names…', '篩選已載入嘅名……'),
+    ariaLabel: tr('roblox.friends.filterLabel', 'Filter the loaded list locally', '喺本地篩選已載入清單'),
+    historyKey: 'friends-filter',
+    submitLabel: tr('roblox.friends.filterApply', 'Filter', '篩選'),
+    supportsRegex: true,
+    onQuery: (q, ctx) => applyLocalFilter(q, ctx),
+  });
+  const filterWrap = el('div', { class: 'rbx-friends__filter' }, filterBar.root, filterErr);
+
   /* list + pagination */
   const listWrap = el('div', { class: 'rbx-list', role: 'list' });
   const pagerSlot = el('div', {});
@@ -209,9 +228,67 @@ async function render(rootEl) {
     el('div', { class: 'rbx-toolbar rbx-friends__target' }, lookupInput, lookupBtn, tabBar),
     countsRow,
     bulk.root,
+    filterWrap,
     listWrap,
     pagerSlot,
     statusLine);
+
+  /** Fields a row is filtered against. */
+  const friendFields = (u) => [u.name, u.displayName, u.id];
+
+  function clearFilterError() {
+    filterErr.textContent = '';
+    filterErr.hidden = true;
+  }
+
+  /**
+   * Commit a new local filter. A regex that fails to compile keeps the last
+   * good predicate in place and reports why inline — never a throw.
+   */
+  function applyLocalFilter(q, ctx) {
+    clearFilterError();
+    const raw = String(q ?? '').trim();
+    if (!raw) {
+      state.filterQuery = '';
+      state.filterMatcher = null;
+      paintRows();
+      return;
+    }
+    const wantRegex = ctx && ctx.mode === 'regex';
+    const flags = ctx && typeof ctx.flags === 'string' ? ctx.flags : '';
+    const built = rowMatcher(raw, { mode: wantRegex ? 'regex' : 'plain', flags }, friendFields);
+    if (!built.ok) {
+      filterErr.textContent = regexErrorMessage(built.error, tr);
+      filterErr.hidden = false;
+      paintRows();
+      return;
+    }
+    state.filterQuery = raw;
+    state.filterMatcher = built.test;
+    paintRows();
+  }
+
+  /** Rows on screen after the local filter; identical rows when it is off. */
+  function visibleRows() {
+    if (!state.filterMatcher) return state.rows;
+    return state.rows.filter((r) => state.filterMatcher(r));
+  }
+
+  /** Honest empty state when the filter matches nothing that was loaded. */
+  function filterEmptyState() {
+    return emptyState('🔍',
+      tr('roblox.friends.filterNoneTitle', 'Nothing matches this filter', '呢個篩選條件搵唔到嘢'),
+      tr('roblox.friends.filterNoneBody',
+        `No loaded row matches "${state.filterQuery}". Widen the pattern or clear it.`,
+        `已載入嘅資料冇一項符合「${state.filterQuery}」。放寬個式或者清除佢。`),
+      {
+        label: tr('roblox.friends.filterClear', 'Clear filter', '清除篩選'),
+        onClick: () => {
+          filterBar.setValue('');
+          applyLocalFilter('', null);
+        },
+      });
+  }
 
   async function loadCounts(idv) {
     countsRow.textContent = '';
@@ -309,13 +386,21 @@ async function render(rootEl) {
       return;
     }
 
+    const rows = visibleRows();
+    if (!rows.length && state.filterMatcher) {
+      // Filter matched nothing that was loaded — distinct from an empty list.
+      listWrap.appendChild(filterEmptyState());
+      announce(tr('roblox.friends.filterNoneAnnounce', 'No rows match the filter', '冇任何一項符合篩選條件'));
+      return;
+    }
+
     // Chunked rendering keeps long lists responsive.
     const frag = document.createDocumentFragment();
-    const total = state.rows.length;
+    const total = rows.length;
     let done = 0;
     const renderChunk = () => {
       const end = Math.min(done + RENDER_CHUNK, total);
-      for (let i = done; i < end; i += 1) frag.appendChild(rowEl(state.rows[i], i));
+      for (let i = done; i < end; i += 1) frag.appendChild(rowEl(rows[i], i));
       done = end;
       if (done < total) requestAnimationFrame(renderChunk);
       else finishPaint();
@@ -325,10 +410,15 @@ async function render(rootEl) {
       listWrap.appendChild(frag);
       // The followers/followings APIs hand out forward cursors only, so this
       // pager offers Next-when-available and an honest Start-over instead of
-      // pretending there is a previous page.
+      // pretending there is a previous page. With a filter active the counts
+      // say shown-vs-loaded so the two numbers are never conflated.
       pagerSlot.appendChild(paginationControls({
         next: state.cursor ? () => loadView(false) : null,
-        hint: tr('roblox.friends.loadedCount', `${formatNumber(total)} loaded`, `已載入 ${formatNumber(total)}`),
+        hint: state.filterMatcher
+          ? tr('roblox.friends.filteredCount',
+            `${formatNumber(rows.length)} match · ${formatNumber(state.rows.length)} loaded`,
+            `${formatNumber(rows.length)} 項符合 · 已載入 ${formatNumber(state.rows.length)}`)
+          : tr('roblox.friends.loadedCount', `${formatNumber(total)} loaded`, `已載入 ${formatNumber(total)}`),
         prevLabel: tr('roblox.pager.restart', '↺ Start over', '↺ 從頭再嚟'),
         nextLabel: tr('roblox.pager.next', 'Load more →', '載入更多 →'),
         prev: total ? () => loadView(true) : null,
