@@ -1,0 +1,847 @@
+/*
+ * Delight lane styles — authenticator, locks & tickets, unlock ladder,
+ * narrator, attention modes, dim sum card, personal vocabulary.
+ *
+ * Conventions (contract §7): M3 tokens only (--mrb-*), visible focus rings,
+ * WCAG AA contrast in both themes, reduced motion honored, narrow layouts
+ * stack instead of clipping. Injected via ui.injectCss by the owning modules;
+ * never referenced from index.html.
+ */
+
+/* ==========================================================================
+   Shared anchored-card anatomy (wizard, unlock prompt, editors, help panels)
+   ========================================================================== */
+
+.mrb-lockwiz,
+.mrb-unlockprompt,
+.mrb-lockman-editor,
+.mrb-auth-editor,
+.mrb-auth-helppanel {
+  max-width: 26rem;
+  padding: var(--mrb-spacing-md, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-radius: var(--mrb-shape-lg, 16px);
+}
+
+.mrb-lockwiz h4,
+.mrb-unlockprompt h4,
+.mrb-tickets h4,
+.mrb-auth-editor h4 {
+  margin: 0;
+  font: var(--mrb-type-title-medium, 500 1rem/1.5 sans-serif);
+  color: var(--mrb-on-surface);
+}
+
+.mrb-lockwiz-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mrb-lockwiz-target {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--mrb-shape-sm, 8px);
+  background: var(--mrb-surface-container-high, rgba(127, 127, 127, 0.12));
+  color: var(--mrb-on-surface);
+  overflow-wrap: anywhere;
+}
+
+.mrb-lockwiz-radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px; /* touch target */
+  color: var(--mrb-on-surface);
+  cursor: pointer;
+}
+
+.mrb-lockwiz-minrow {
+  padding-inline-start: 28px;
+}
+
+.mrb-lockwiz-stepper {
+  max-width: 7rem;
+}
+
+.mrb-lockwiz-disclosure ul {
+  margin: 0;
+  padding-inline-start: 20px;
+  color: var(--mrb-on-surface-variant);
+}
+
+.mrb-lockwiz-disclosure li {
+  margin-block: 4px;
+}
+
+.mrb-lockwiz-path {
+  display: block;
+  padding: 6px 8px;
+  margin-block: 4px;
+  border-radius: var(--mrb-shape-sm, 8px);
+  background: var(--mrb-surface-container-highest, rgba(127, 127, 127, 0.18));
+  color: var(--mrb-on-surface);
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* ==========================================================================
+   Support Tickets desk
+   ========================================================================== */
+
+.mrb-tickets {
+  max-width: 30rem;
+  padding: var(--mrb-spacing-md, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-radius: var(--mrb-shape-lg, 16px);
+}
+
+/*
+ * THE PLAIN LINE — deliberately OUTSIDE the comedy styling and outside the
+ * funny level: plain system font, no decoration, maximum legibility.
+ */
+.mrb-tickets-plainline {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--mrb-outline-variant, rgba(127, 127, 127, 0.4));
+  border-radius: var(--mrb-shape-sm, 8px);
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--mrb-on-surface);
+  background: var(--mrb-surface);
+}
+
+.mrb-tickets-reply {
+  margin: 0;
+  padding: 10px 14px;
+  border-inline-start: 4px solid var(--mrb-primary);
+  border-radius: var(--mrb-shape-sm, 8px);
+  background: var(--mrb-surface-container-low, rgba(127, 127, 127, 0.08));
+  color: var(--mrb-on-surface);
+}
+
+.mrb-tickets-resolution {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mrb-tickets-history summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--mrb-primary);
+}
+
+/* ==========================================================================
+   Unlock ladder games
+   ========================================================================== */
+
+.mrb-ladder {
+  min-width: min(24rem, 86vw);
+  max-width: 30rem;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mrb-ladder-footer {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--mrb-on-surface-variant);
+  border-top: 1px solid var(--mrb-outline-variant, rgba(127, 127, 127, 0.25));
+  padding-top: 8px;
+}
+
+.mrb-ladder-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mrb-ladder-option {
+  justify-content: center;
+  min-height: 48px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.mrb-ladder-dots {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mrb-ladder-dot {
+  inline-size: 12px;
+  block-size: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--mrb-primary);
+}
+
+.mrb-ladder-dot--filled {
+  background: var(--mrb-primary);
+}
+
+.mrb-ladder-dot--empty {
+  background: transparent;
+}
+
+.mrb-ladders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 8px;
+}
+
+.mrb-ladder-sumcell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+}
+
+.mrb-ladder-sumprompt {
+  min-width: 5ch;
+  color: var(--mrb-on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.mrb-ladder-suminput {
+  max-width: 5rem;
+}
+
+.mrb-ladder-molegrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-width: 18rem;
+  margin-inline: auto;
+}
+
+.mrb-ladder-molecell {
+  aspect-ratio: 1;
+  min-height: 64px;
+  border-radius: var(--mrb-shape-md, 12px);
+  border: 2px solid var(--mrb-outline-variant, rgba(127, 127, 127, 0.4));
+  background: var(--mrb-surface-container-low, rgba(127, 127, 127, 0.08));
+  cursor: pointer;
+  transition: background-color var(--mrb-motion-short, 150ms) var(--mrb-easing-standard, ease);
+}
+
+.mrb-ladder-molecell.has-mole {
+  background: var(--mrb-primary);
+  animation: mrb-mole-pop 260ms var(--mrb-easing-emphasized, cubic-bezier(0.2, 0, 0, 1));
+}
+
+/* Reduced motion: opacity swap only — no bounce, no scale. */
+.mrb-ladder-molegrid--reduced .mrb-ladder-molecell.has-mole {
+  animation: none;
+  transition: opacity 120ms linear;
+  opacity: 0.85;
+}
+
+.mrb-ladder-molecell.is-hit {
+  outline: 3px solid var(--mrb-on-primary-fixed, currentColor);
+  outline-offset: 2px;
+}
+
+@keyframes mrb-mole-pop {
+  from {
+    transform: translateY(30%) scale(0.7);
+    opacity: 0.2;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.mrb-ladder-clock p {
+  color: var(--mrb-on-surface);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mrb-ladder-molecell.has-mole {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   Authenticator
+   ========================================================================== */
+
+.mrb-auth-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.mrb-auth-head h2 {
+  margin: 0;
+}
+
+.mrb-auth-pledge,
+.mrb-vocab-privacy {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--mrb-on-surface-variant);
+}
+
+.mrb-card.mrb-auth-skew,
+.mrb-card.mrb-auth-ornamental {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  color: var(--mrb-on-surface);
+}
+
+.mrb-auth-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--mrb-shape-md, 12px);
+}
+
+.mrb-auth-select {
+  inline-size: 20px;
+  block-size: 20px;
+}
+
+.mrb-auth-tile {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 40px;
+  block-size: 40px;
+  border-radius: var(--mrb-shape-full, 999px);
+  background: var(--mrb-primary-container, var(--mrb-primary));
+  color: var(--mrb-on-primary-container, var(--mrb-on-primary));
+  font-weight: 600;
+  flex: none;
+}
+
+.mrb-auth-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 8rem;
+  flex: 1 1 10rem;
+}
+
+.mrb-auth-name {
+  font-weight: 500;
+  color: var(--mrb-on-surface);
+  overflow-wrap: anywhere;
+}
+
+.mrb-auth-account {
+  font-size: 0.82rem;
+  color: var(--mrb-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+
+.mrb-auth-codewrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The code itself: large, grouped, monospaced, always high-contrast text. */
+.mrb-auth-code {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 1.45rem;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  color: var(--mrb-on-surface);
+  user-select: all;
+}
+
+.mrb-auth-secs {
+  min-width: 3ch;
+  text-align: end;
+  color: var(--mrb-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+
+.mrb-auth-ringholder {
+  display: inline-flex;
+  inline-size: 28px;
+  block-size: 28px;
+}
+
+.mrb-auth-ring {
+  transform: rotate(-90deg);
+}
+
+.mrb-auth-ring-track {
+  fill: none;
+  stroke: var(--mrb-outline-variant, rgba(127, 127, 127, 0.35));
+  stroke-width: 3;
+}
+
+.mrb-auth-ring-bar {
+  fill: none;
+  stroke: var(--mrb-primary);
+  stroke-width: 3;
+  stroke-linecap: round;
+  /* Numeric seconds beside it carry the same signal — never colour alone. */
+}
+
+/* Compact action buttons still meet the 44px target through padding. */
+.mrb-auth-min {
+  min-height: 36px;
+  padding-block: 8px;
+}
+
+.mrb-auth-nextpeek {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  color: var(--mrb-on-surface-variant);
+  min-width: 8ch;
+}
+
+.mrb-auth-reorder {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.mrb-auth-grouphead {
+  list-style: none;
+  padding: 8px 8px 2px;
+  font-weight: 600;
+  color: var(--mrb-primary);
+}
+
+.mrb-auth-empty {
+  list-style: none;
+  padding: 16px 8px;
+  color: var(--mrb-on-surface-variant);
+}
+
+.mrb-auth-searchrow,
+.mrb-auth-bulkbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mrb-auth-searchrow .mrb-field__input {
+  flex: 1 1 14rem;
+}
+
+.mrb-auth-grouplabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  color: var(--mrb-on-surface);
+  cursor: pointer;
+}
+
+.mrb-auth-paramrow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mrb-auth-paramrow > .mrb-field {
+  flex: 1 1 7rem;
+}
+
+.mrb-auth-editoractions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mrb-auth-b32 {
+  font-family: ui-monospace, monospace;
+  letter-spacing: 0.06em;
+  resize: vertical;
+}
+
+.mrb-auth-qrarea {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px;
+  border-radius: var(--mrb-shape-md, 12px);
+  background: var(--mrb-surface-container-lowest, #fff);
+  border: 1px solid var(--mrb-outline-variant, rgba(127, 127, 127, 0.3));
+}
+
+/* The QR canvas keeps its own black/white palette regardless of theme. */
+.mrb-auth-qr {
+  image-rendering: pixelated;
+  max-inline-size: 100%;
+  block-size: auto;
+}
+
+.mrb-auth-secretcopy {
+  display: inline-block;
+  padding: 6px 8px;
+  border-radius: var(--mrb-shape-sm, 8px);
+  background: var(--mrb-surface-container-high, rgba(127, 127, 127, 0.14));
+  font-family: ui-monospace, monospace;
+  color: var(--mrb-on-surface);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.mrb-auth-confirm {
+  max-width: 10rem;
+  font-family: ui-monospace, monospace;
+  font-size: 1.1rem;
+  letter-spacing: 0.2em;
+}
+
+/* Screen-reader-only live region used for polite code-roll announcements. */
+.mrb-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==========================================================================
+   Lock manager rows
+   ========================================================================== */
+
+.mrb-lockman {
+  padding: var(--mrb-spacing-md, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.mrb-lockman h3,
+.mrb-vocab-panel h3,
+.mrb-tickets h3 {
+  margin: 0;
+}
+
+.mrb-lockman-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+}
+
+.mrb-lockman-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 12rem;
+  min-width: 10rem;
+}
+
+.mrb-lockman-name {
+  color: var(--mrb-on-surface);
+  overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   Narrator status lines
+   ========================================================================== */
+
+.mrb-narr-status {
+  margin: 2px 0 0;
+  font-size: 0.83rem;
+  color: var(--mrb-on-surface-variant);
+}
+
+.mrb-narr-pickers {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.mrb-narr-pickerCard {
+  flex: 1 1 16rem;
+  padding: var(--mrb-spacing-md, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 26rem;
+}
+
+.mrb-narr-pickerCard select {
+  min-height: 44px;
+}
+
+/* ==========================================================================
+   Attention modes (ADHD) — body-class driven, opacity-only dimming
+   ========================================================================== */
+
+body[data-adhd~='focus'] :where(.mrb-card, section, article, [role='tabpanel']) {
+  transition: opacity var(--mrb-motion-medium, 250ms) var(--mrb-easing-standard, ease);
+}
+
+body[data-adhd~='focus'] :where(.mrb-card, section, article):not(.mrb-adhd-spotlit):not(:hover):not(:focus-within) {
+  opacity: 0.35; /* dimmed, never hidden or removed */
+}
+
+.mrb-adhd-exitpill {
+  position: fixed;
+  inset-block-end: 16px;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  box-shadow: var(--mrb-elev-2, 0 2px 6px rgba(0, 0, 0, 0.25));
+}
+
+/* Low stimulation: quieter colour, minimal motion. */
+body[data-adhd~='lowstim'] main,
+body[data-adhd~='lowstim'] .mrb-card {
+  filter: saturate(0.55);
+}
+
+body[data-adhd~='lowstim'] *,
+body[data-adhd~='lowstim'] *::before,
+body[data-adhd~='lowstim'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 80ms !important;
+}
+
+.mrb-adhd-timechip {
+  margin-inline: 10px;
+  padding: 2px 10px;
+  border-radius: var(--mrb-shape-full, 999px);
+  background: var(--mrb-surface-container-high, rgba(127, 127, 127, 0.14));
+  color: var(--mrb-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  align-self: center;
+  user-select: none;
+}
+
+.mrb-adhd-lastchange {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: var(--mrb-on-surface-variant);
+}
+
+.mrb-adhd-onething {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 8px auto;
+  padding: 10px 14px;
+  max-width: 40rem;
+}
+
+.mrb-adhd-onething-text {
+  margin: 0;
+  flex: 1 1 12rem;
+  color: var(--mrb-on-surface);
+  overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   Dim sum surprise card — bottom-right, non-blocking, auto-dismissing
+   ========================================================================== */
+
+.mrb-dimsum-card {
+  position: fixed;
+  inset-block-end: 16px;
+  inset-inline-end: 16px;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  max-width: min(22rem, calc(100vw - 32px));
+  border-radius: var(--mrb-shape-lg, 16px);
+  background: var(--mrb-surface-container-high, #fff);
+  color: var(--mrb-on-surface);
+  box-shadow: var(--mrb-elev-3, 0 6px 18px rgba(0, 0, 0, 0.3));
+  animation: mrb-dimsum-in 300ms var(--mrb-easing-emphasized, cubic-bezier(0.2, 0, 0, 1));
+}
+
+.mrb-dimsum-card img {
+  inline-size: 72px;
+  block-size: 72px;
+  object-fit: cover;
+  border-radius: var(--mrb-shape-md, 12px);
+  flex: none;
+  background: var(--mrb-surface-container, rgba(127, 127, 127, 0.15));
+}
+
+.mrb-dimsum-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mrb-dimsum-text strong {
+  overflow-wrap: anywhere;
+}
+
+.mrb-dimsum-sub {
+  font-size: 0.85rem;
+  color: var(--mrb-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+
+.mrb-dimsum-close {
+  align-self: flex-start;
+  flex: none;
+}
+
+@keyframes mrb-dimsum-in {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mrb-dimsum-card {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   Personal vocabulary panel
+   ========================================================================== */
+
+.mrb-vocab-panel {
+  max-width: 34rem;
+  padding: var(--mrb-spacing-md, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mrb-vocab-intro {
+  margin: 0;
+  color: var(--mrb-on-surface-variant);
+}
+
+.mrb-vocab-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Semantic file input kept visually unobtrusive; its LABEL is the control. */
+.mrb-vocab-fileinput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.mrb-vocab-fileinput:focus-visible + .mrb-vocab-pick {
+  outline: 2px solid var(--mrb-primary);
+  outline-offset: 2px;
+}
+
+.mrb-vocab-pick {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mrb-vocab-status {
+  margin: 0;
+  min-height: 1.4em;
+  color: var(--mrb-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+
+.mrb-vocab-status--ok {
+  color: var(--mrb-primary);
+}
+
+.mrb-vocab-status--error {
+  color: var(--mrb-error, #b3261e);
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   Focus visibility (every interactive element in this stylesheet's scope)
+   ========================================================================== */
+
+.mrb-lockwiz :is(button, input, select),
+.mrb-unlockprompt :is(button, input),
+.mrb-tickets :is(button, input, select, textarea, summary),
+.mrb-ladder button,
+.mrb-auth-row :is(button, input),
+.mrb-lockman-row :is(button, input),
+.mrb-vocab-panel :is(button, input, label),
+.mrb-narr-pickerCard :is(button, input, select) {
+  outline-color: var(--mrb-primary);
+}
+
+.mrb-lockwiz :is(button, input, select):focus-visible,
+.mrb-unlockprompt :is(button, input):focus-visible,
+.mrb-tickets :is(button, input, select, textarea, summary):focus-visible,
+.mrb-ladder button:focus-visible,
+.mrb-auth-row :is(button, input):focus-visible,
+.mrb-lockman-row :is(button, input):focus-visible,
+.mrb-vocab-panel :is(button, input):focus-visible,
+.mrb-adhd-exitpill:focus-visible,
+.mrb-narr-pickerCard :is(button, input, select):focus-visible {
+  outline: 2px solid var(--mrb-primary);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Narrow widths stack instead of clipping (bilingual labels get long)
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  .mrb-ladders-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mrb-ladder-options {
+    grid-template-columns: 1fr;
+  }
+
+  .mrb-auth-row,
+  .mrb-lockman-row {
+    align-content: flex-start;
+  }
+
+  .mrb-auth-codewrap {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .mrb-narr-pickers {
+    flex-direction: column;
+  }
+
+  .mrb-narr-pickerCard {
+    max-width: none;
+  }
+}
