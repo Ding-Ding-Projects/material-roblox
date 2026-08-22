@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'none'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Material Roblox</title>
+    <link rel="stylesheet" href="./styles/tokens.css" />
+    <link rel="stylesheet" href="./styles/base.css" />
+    <link rel="stylesheet" href="./styles/components.css" />
+  </head>
+  <body>
+    <div id="mrb-app" data-dock="left">
+      <header id="mrb-titlebar" class="mrb-titlebar">
+        <div class="mrb-titlebar-brand">
+          <img src="../assets/logo.svg" alt="" width="18" height="18" draggable="false" />
+          <span id="mrb-titlebar-name">Material Roblox</span>
+        </div>
+        <div class="mrb-titlebar-spacer"></div>
+        <div class="mrb-titlebar-actions">
+          <button
+            type="button"
+            class="mrb-titlebar-btn"
+            data-mrb-win="minimize"
+            aria-label="Minimize window"
+            title="Minimize"
+          >
+            <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8" /></svg>
+          </button>
+          <button
+            type="button"
+            class="mrb-titlebar-btn"
+            data-mrb-win="toggleMaximize"
+            aria-label="Maximize or restore window"
+            title="Maximize / restore"
+          >
+            <svg viewBox="0 0 12 12" aria-hidden="true">
+              <rect x="2.5" y="2.5" width="7" height="7" rx="1" fill="none" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="mrb-titlebar-btn mrb-titlebar-close"
+            data-mrb-win="close"
+            aria-label="Close window"
+            title="Close"
+          >
+            <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6" /></svg>
+          </button>
+        </div>
+      </header>
+
+      <aside id="mrb-tabstrip" aria-orientation="vertical" aria-label="Tabs"></aside>
+
+      <main id="mrb-surface" role="main" tabindex="-1"></main>
+    </div>
+
+    <div id="mrb-toast-stack" role="region" aria-live="polite" aria-label="Notifications"></div>
+    <div id="mrb-overlay-root"></div>
+    <div id="mrb-live-region" role="status" aria-live="polite" class="mrb-visually-hidden"></div>
+
+    <script type="module" src="./main.mjs"></script>
+  </body>
+</html>

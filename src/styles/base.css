@@ -1,0 +1,176 @@
+/**
+ * Material Roblox - base layer: modern reset, focus, selection, scrollbars,
+ * reduced motion, utilities. Tokens come from tokens.css.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--mrb-font-family);
+  font-size: var(--mrb-type-body-md-size);
+  line-height: var(--mrb-type-body-md-line-height);
+  letter-spacing: var(--mrb-type-body-md-tracking);
+  color: var(--mrb-on-surface);
+  background-color: var(--mrb-surface);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+/* CJK text needs a little more air than the Latin default. */
+:lang(zh),
+:lang(zh-Hant),
+:lang(yue) {
+  line-height: 1.6;
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+a {
+  color: var(--mrb-primary);
+  text-underline-offset: 2px;
+}
+
+code,
+pre {
+  font-family: var(--mrb-font-mono);
+}
+
+/* ------------------------------- Focus ---------------------------------- */
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--mrb-primary);
+  outline-offset: 2px;
+  border-radius: var(--mrb-shape-xs);
+}
+
+/* ------------------------------ Selection -------------------------------- */
+
+::selection {
+  background-color: color-mix(in srgb, var(--mrb-primary) 32%, transparent);
+  color: var(--mrb-on-surface);
+}
+
+/* ----------------------------- Scrollbars -------------------------------- */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--mrb-outline-variant);
+  border-radius: var(--mrb-shape-full);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mrb-outline);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* --------------------------- Reduced motion ------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------ Utilities -------------------------------- */
+
+[hidden] {
+  display: none !important;
+}
+
+.mrb-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Touch target floor; the contract minimum is 48px (>= the 44px baseline). */
+.mrb-touch-target {
+  min-width: var(--mrb-touch-target);
+  min-height: var(--mrb-touch-target);
+}
+
+::backdrop {
+  background-color: color-mix(in srgb, var(--mrb-scrim) 50%, transparent);
+}
+
+/* -------------------------------- Print ---------------------------------- */
+
+@media print {
+  #mrb-tabstrip,
+  #mrb-titlebar,
+  #mrb-toast-stack,
+  #mrb-overlay-root {
+    display: none !important;
+  }
+
+  body {
+    overflow: visible;
+    background: #ffffff;
+    color: #000000;
+  }
+}
