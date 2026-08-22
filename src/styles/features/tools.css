@@ -1,0 +1,1067 @@
+/**
+ * tools.css — Lane E feature stylesheet (appearance, colour picker, converter,
+ * Ollama, updates, schedule, VS Code surfaces).
+ *
+ * Injected by the owning modules via ui.injectCss — never added to index.html.
+ * Every rule consumes the shared M3 token set (`--mrb-*`) with literal fallbacks
+ * so the lane degrades gracefully if it ever renders before tokens land.
+ * Focus visibility, reduced-motion and narrow-width stacking are handled here
+ * for every control this lane ships.
+ */
+
+/* ================================================================== */
+/* Rainbow sentinel rendering                                          */
+/*                                                                     */
+/* One global duration (--mrb-rainbow-duration) is published by        */
+/* colorpicker.applyRainbowGlobals() from appearance.rainbowSpeedLevel */
+/* (RAINBOW_SPEED_MAP: 1=120s, 2=60s, 3=30s, 4=15s, 5=8s). Elements     */
+/* carrying the sentinel get `.mrb-rainbow` — never an inline colour.  */
+/* Technique: a registered <angle> custom property rotates the origin   */
+/* of a full-wheel conic-gradient, so hue interpolates THROUGH the      */
+/* wheel continuously (no seam, no off-wheel filter drift).             */
+/* ================================================================== */
+
+@property --mrb-rainbow-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.mrb-rainbow {
+  background: conic-gradient(
+    from var(--mrb-rainbow-angle),
+    hsl(0 90% 60%), hsl(45 95% 58%), hsl(90 80% 50%), hsl(135 75% 48%),
+    hsl(180 80% 48%), hsl(225 85% 58%), hsl(270 80% 58%), hsl(315 85% 58%),
+    hsl(0 90% 60%)
+  );
+  animation: mrb-rainbow-spin var(--mrb-rainbow-duration, 30s) linear infinite;
+}
+
+@keyframes mrb-rainbow-spin {
+  to {
+    --mrb-rainbow-angle: 360deg;
+  }
+}
+
+/* Reduced motion settles on ONE fixed hue with a short crossfade — never a
+   merely slowed cycle. The element also explains itself on hover/focus. */
+.mrb-rainbow {
+  transition: background 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mrb-rainbow {
+    animation: none;
+    background: hsl(var(--mrb-rainbow-hue, 210) 85% 52%);
+  }
+
+  .mrb-rainbow {
+    position: relative;
+  }
+
+  .mrb-rainbow:hover::after,
+  .mrb-rainbow:focus-visible::after {
+    content: 'reduced motion: rainbow paused';
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 4px);
+    transform: translateX(-50%);
+    background: #202124;
+    color: #fff;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    z-index: 30;
+    pointer-events: none;
+  }
+}
+
+/* ================================================================== */
+/* Colour picker                                                       */
+/* ================================================================== */
+
+.mrb-cpk {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 260px;
+  max-width: 320px;
+}
+
+.mrb-cpk-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mrb-cpk-preview {
+  width: 56px;
+  height: 40px;
+  border-radius: var(--mrb-shape-md, 12px);
+  border: 1px solid var(--mrb-outline-variant, #c4c7c5);
+  background-image: linear-gradient(45deg, #c9cbcd 25%, transparent 25%, transparent 75%, #c9cbcd 75%),
+    linear-gradient(45deg, #c9cbcd 25%, transparent 25%, transparent 75%, #c9cbcd 75%);
+  background-color: #fff;
+  background-position: 0 0, 8px 8px;
+  background-size: 16px 16px;
+  background-clip: padding-box;
+  box-shadow: var(--mrb-elev-1, 0 1px 3px rgba(0, 0, 0, 0.18));
+}
+
+.mrb-cpk-preview:not(.mrb-rainbow) {
+  /* solid preview paints over the checkerboard via its own background shorthand in JS */
+}
+
+.mrb-cpk-clipped,
+.mrb-cpk-rainbow-chip {
+  align-self: center;
+}
+
+.mrb-cpk-actions {
+  display: flex;
+  gap: 6px;
+  margin-inline-start: auto;
+}
+
+.mrb-cpk-sv {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 232 / 168;
+  border-radius: var(--mrb-shape-sm, 8px);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.mrb-cpk-strip {
+  width: 100%;
+  height: 20px;
+  border-radius: 999px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.mrb-cpk canvas:focus-visible,
+.mrb-cpk input:focus-visible,
+.mrb-cpk button:focus-visible {
+  outline: 2px solid var(--mrb-primary, #B3261E);
+  outline-offset: 2px;
+}
+
+.mrb-cpk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px;
+}
+
+.mrb-cpk-cell-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.72;
+  margin-bottom: 2px;
+}
+
+.mrb-cpk-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+
+.mrb-cpk-subtitle {
+  font-weight: 600;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.mrb-cpk-trans {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.mrb-cpk-trans-row {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding-block: 2px;
+}
+
+.mrb-cpk-trans-name {
+  font-size: 11px;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.mrb-cpk-trans-val {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.mrb-cpk-contrast-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.mrb-cpk-fg-input {
+  max-width: 120px;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.mrb-cpk-contrast-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-block: 3px;
+  flex-wrap: wrap;
+}
+
+.mrb-cpk-contrast-label {
+  min-width: 76px;
+  opacity: 0.75;
+  font-size: 13px;
+}
+
+.mrb-chip-pass {
+  background: color-mix(in srgb, #2e7d32 18%, transparent);
+  color: inherit;
+}
+
+.mrb-chip-fail {
+  background: color-mix(in srgb, var(--mrb-error, #B3261E) 16%, transparent);
+  color: inherit;
+}
+
+.mrb-cpk-swatches {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mrb-cpk-pal {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.mrb-cpk-pal-name {
+  font-size: 11px;
+  opacity: 0.65;
+  margin-inline-end: 2px;
+}
+
+.mrb-cpk-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--mrb-outline-variant, #c4c7c5);
+  padding: 0;
+  cursor: pointer;
+}
+
+.mrb-cpk-swatch:focus-visible {
+  outline: 2px solid var(--mrb-primary, #B3261E);
+  outline-offset: 2px;
+}
+
+.mrb-cpk-empty {
+  opacity: 0.65;
+  font-size: 13px;
+}
+
+/* ================================================================== */
+/* Appearance tab + per-element editor                                 */
+/* ================================================================== */
+
+.mrb-appearance-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mrb-seed-host .mrb-cpk-preview {
+  height: 28px;
+}
+
+.mrb-appearance-livepreview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--mrb-surface-container, #211f26);
+  border-radius: var(--mrb-shape-lg, 16px);
+  padding: 12px;
+}
+
+.mrb-appearance-previewrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mrb-appearance-presetrow,
+.mrb-appearance-presetactions,
+.mrb-appearance-logopresets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.mrb-explain {
+  font-size: 12.5px;
+  opacity: 0.75;
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+
+.mrb-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* --- editor panel ---------------------------------------------------- */
+
+.mrb-app-editor {
+  background: var(--mrb-surface-container-high, #2a2930);
+  color: var(--mrb-on-surface, #e6e1e5);
+  border: 1px solid var(--mrb-outline-variant, #48454e);
+  border-radius: var(--mrb-shape-lg, 16px);
+  box-shadow: var(--mrb-elev-3, 0 8px 24px rgba(0, 0, 0, 0.35));
+  padding: 12px;
+  width: 340px;
+  max-height: min(78vh, 720px);
+  overflow-y: auto;
+  z-index: 40;
+}
+
+.mrb-app-editor-floating {
+  position: fixed;
+}
+
+.mrb-app-editor-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.mrb-app-editor-sig {
+  display: block;
+  font-size: 10.5px;
+  opacity: 0.65;
+  overflow-wrap: anywhere;
+  margin-bottom: 8px;
+}
+
+.mrb-app-editor-states {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.mrb-app-state-chip[aria-selected='true'] {
+  background: var(--mrb-primary, #B3261E);
+  color: var(--mrb-on-primary, #fff);
+}
+
+.mrb-app-editor-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mrb-app-section summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding-block: 4px;
+}
+
+.mrb-app-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px 10px;
+  padding-top: 6px;
+}
+
+.mrb-app-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.mrb-app-row > span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+}
+
+.mrb-app-row-wide {
+  grid-column: 1 / -1;
+}
+
+.mrb-app-fontlist {
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid var(--mrb-outline-variant, #48454e);
+  border-radius: var(--mrb-shape-sm, 8px);
+  margin-top: 4px;
+}
+
+.mrb-app-fontopt {
+  padding: 6px 8px;
+  cursor: pointer;
+  border-bottom: 1px solid color-mix(in srgb, var(--mrb-outline-variant, #48454e) 40%, transparent);
+}
+
+.mrb-app-fontopt:hover {
+  background: color-mix(in srgb, var(--mrb-primary, #B3261E) 14%, transparent);
+}
+
+.mrb-app-colour-host .mrb-cpk {
+  margin-top: 6px;
+}
+
+.mrb-app-shadowbuilder {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mrb-app-shadowbuilder input {
+  width: 64px;
+}
+
+.mrb-app-editor-resets {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.mrb-app-editor-resets select {
+  max-width: 170px;
+}
+
+/* --- logo editor ------------------------------------------------------ */
+
+.mrb-logo-editor {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mrb-logo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.mrb-logo-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.mrb-logo-safearea {
+  border: 1px dashed var(--mrb-outline, #938f99);
+  border-radius: var(--mrb-shape-md, 12px);
+  padding: 10px;
+  position: relative;
+}
+
+.mrb-logo-targets {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.mrb-logo-targetfig {
+  margin: 0;
+  text-align: center;
+  font-size: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.mrb-logo-targetfig img {
+  image-rendering: auto;
+  background-image: linear-gradient(45deg, #c9cbcd 25%, transparent 25%, transparent 75%, #c9cbcd 75%),
+    linear-gradient(45deg, #c9cbcd 25%, transparent 25%, transparent 75%, #c9cbcd 75%);
+  background-position: 0 0, 6px 6px;
+  background-size: 12px 12px;
+  border: 1px solid var(--mrb-outline-variant, #48454e);
+  border-radius: 4px;
+}
+
+.mrb-logo-error {
+  color: var(--mrb-error, #f2b8b5);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+/* ================================================================== */
+/* Converter                                                           */
+/* ================================================================== */
+
+.mrb-converter-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mrb-converter-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mrb-converter-drop {
+  margin-top: 10px;
+  border: 2px dashed var(--mrb-outline, #938f99);
+  border-radius: var(--mrb-shape-lg, 16px);
+  padding: 22px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.mrb-converter-drop-active {
+  border-color: var(--mrb-primary, #B3261E);
+  background: color-mix(in srgb, var(--mrb-primary, #B3261E) 10%, transparent);
+}
+
+.mrb-converter-queue td,
+.mrb-converter-queue th {
+  text-align: start;
+  vertical-align: middle;
+}
+
+.mrb-converter-adaptersel {
+  max-width: 190px;
+}
+
+.mrb-converter-error {
+  color: var(--mrb-error, #f2b8b5);
+  font-size: 12px;
+  max-width: 240px;
+  overflow-wrap: anywhere;
+}
+
+.mrb-progress-bar {
+  accent-color: var(--mrb-primary, #B3261E);
+  width: 110px;
+  height: 8px;
+}
+
+progress.mrb-progress-bar::-webkit-progress-bar {
+  background: var(--mrb-surface-container-highest, #36343b);
+  border-radius: 999px;
+}
+
+progress.mrb-progress-bar::-webkit-progress-value {
+  background: var(--mrb-primary, #B3261E);
+  border-radius: 999px;
+}
+
+.mrb-converter-searchhost {
+  margin-bottom: 8px;
+}
+
+.mrb-converter-searchhost input {
+  width: min(420px, 100%);
+  box-sizing: border-box;
+}
+
+.mrb-converter-catalog {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mrb-converter-cat summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding-block: 4px;
+}
+
+.mrb-converter-adapter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--mrb-shape-sm, 8px);
+  flex-wrap: wrap;
+}
+
+.mrb-converter-adapter:nth-child(even) {
+  background: color-mix(in srgb, var(--mrb-surface-container-highest, #36343b) 55%, transparent);
+}
+
+.mrb-converter-adapter-name {
+  font-weight: 500;
+}
+
+.mrb-converter-adapter-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mrb-converter-adapter-disabled {
+  opacity: 0.62;
+}
+
+.mrb-converter-reason {
+  font-size: 12px;
+  color: var(--mrb-error, #f2b8b5);
+}
+
+.mrb-converter-losses {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.mrb-converter-disclosure-card {
+  padding: 8px 10px;
+  margin-block: 6px;
+  border: 1px solid var(--mrb-outline-variant, #48454e);
+  border-radius: var(--mrb-shape-md, 12px);
+}
+
+.mrb-converter-disclosure-card li {
+  margin-inline-start: 16px;
+  font-size: 13px;
+}
+
+/* ================================================================== */
+/* Ollama                                                              */
+/* ================================================================== */
+
+.mrb-ollama-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mrb-ollama-health {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mrb-ollama-running ul {
+  margin: 4px 0 0 18px;
+}
+
+.mrb-ollama-troubleshoot {
+  border: 1px solid var(--mrb-outline-variant, #48454e);
+  border-radius: var(--mrb-shape-md, 12px);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mrb-ollama-troubleshoot ul {
+  margin: 0 0 0 18px;
+  line-height: 1.6;
+}
+
+.mrb-ollama-filterrow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.mrb-ollama-filterrow select {
+  max-width: 180px;
+}
+
+.mrb-ollama-refreshrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-block: 8px;
+}
+
+.mrb-ollama-pullitem {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 0;
+  flex-wrap: wrap;
+}
+
+.mrb-ollama-pullitem strong {
+  min-width: 120px;
+}
+
+.mrb-ollama-chat {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 12px;
+  min-height: 380px;
+}
+
+.mrb-ollama-sessionlist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.mrb-ollama-sessionrow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+}
+
+.mrb-ollama-sessionrow .mrb-btn-text:first-child {
+  justify-content: flex-start;
+  text-align: start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.mrb-ollama-session-active {
+  background: color-mix(in srgb, var(--mrb-secondary-container, #4a4458) 70%, transparent);
+  border-radius: var(--mrb-shape-sm, 8px);
+}
+
+.mrb-ollama-threadcol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mrb-ollama-threadhead {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mrb-ollama-paramwrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.mrb-ollama-param {
+  width: 84px;
+}
+
+.mrb-ollama-thread {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--mrb-surface-container-lowest, #0f0e13);
+  border-radius: var(--mrb-shape-lg, 16px);
+}
+
+.mrb-ollama-msg {
+  position: relative;
+  max-width: 82%;
+  padding: 8px 30px 8px 12px;
+  border-radius: var(--mrb-shape-lg, 16px);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.mrb-ollama-msg pre {
+  overflow-x: auto;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.mrb-ollama-msg code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.mrb-ollama-msg-user {
+  align-self: flex-end;
+  background: var(--mrb-primary, #B3261E);
+  color: var(--mrb-on-primary, #fff);
+}
+
+.mrb-ollama-msg-assistant {
+  align-self: flex-start;
+  background: var(--mrb-surface-container-high, #2a2930);
+  color: var(--mrb-on-surface, #e6e1e5);
+}
+
+.mrb-ollama-copybtn {
+  position: absolute;
+  top: 4px;
+  inset-inline-end: 4px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.mrb-ollama-msg:hover .mrb-ollama-copybtn,
+.mrb-ollama-copybtn:focus-visible {
+  opacity: 1;
+}
+
+.mrb-ollama-composer {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.mrb-ollama-input {
+  flex: 1;
+  min-width: 200px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.mrb-ollama-harnesslog li {
+  margin-inline-start: 18px;
+  line-height: 1.7;
+}
+
+.mrb-updates-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 14px;
+  margin: 8px 0;
+}
+
+.mrb-updates-grid dt {
+  opacity: 0.7;
+}
+
+.mrb-updates-grid dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ================================================================== */
+/* Update banner + status chip                                         */
+/* ================================================================== */
+
+.mrb-update-banner {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  max-width: min(94vw, 760px);
+  box-sizing: border-box;
+  padding: 8px 14px;
+  border-radius: 0 0 var(--mrb-shape-lg, 16px) var(--mrb-shape-lg, 16px);
+  background: var(--mrb-secondary-container, #4a4458);
+  color: var(--mrb-on-secondary-container, #e8def8);
+  box-shadow: var(--mrb-elev-2, 0 3px 10px rgba(0, 0, 0, 0.3));
+}
+
+.mrb-update-banner-text strong {
+  font-weight: 700;
+}
+
+.mrb-update-banner-unsigned {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.mrb-update-chip {
+  position: fixed;
+  inset-block-end: 10px;
+  inset-inline-end: 10px;
+  z-index: 50;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 12.5px;
+  background: var(--mrb-surface-container-high, #2a2930);
+  color: var(--mrb-on-surface, #e6e1e5);
+  box-shadow: var(--mrb-elev-1, 0 1px 3px rgba(0, 0, 0, 0.25));
+  cursor: pointer;
+}
+
+.mrb-update-banner button:focus-visible,
+.mrb-update-chip:focus-visible {
+  outline: 2px solid var(--mrb-primary, #ffb4ab);
+  outline-offset: 2px;
+}
+
+/* ================================================================== */
+/* Schedule                                                            */
+/* ================================================================== */
+
+.mrb-schedule-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mrb-schedule-next {
+  font-weight: 600;
+  min-height: 1.4em;
+}
+
+.mrb-schedule-days {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mrb-schedule-daychip[aria-pressed='true'] {
+  background: var(--mrb-primary, #B3261E);
+  color: var(--mrb-on-primary, #fff);
+}
+
+.mrb-schedule-times {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mrb-schedule-times .mrb-explain {
+  flex-basis: 100%;
+}
+
+.mrb-schedule-tablewrap {
+  overflow-x: auto;
+}
+
+.mrb-schedule-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: min(520px, 86vw);
+}
+
+.mrb-schedule-valuehost:empty::before {
+  content: '';
+}
+
+.mrb-schedule-error {
+  color: var(--mrb-error, #f2b8b5);
+  font-size: 13px;
+  min-height: 1em;
+  margin: 0;
+}
+
+.mrb-table th {
+  text-align: start;
+  opacity: 0.75;
+  font-weight: 600;
+}
+
+.mrb-table td {
+  padding-block: 6px;
+}
+
+/* ================================================================== */
+/* Density hook                                                        */
+/*                                                                     */
+/* appearance.js publishes --mrb-density (1 or 0.72). These rules give  */
+/* compact mode real effect on this lane's dense forms without touching */
+/* sibling lanes' files.                                                */
+/* ================================================================== */
+
+[data-density='compact'] .mrb-app-grid,
+[data-density='compact'] .mrb-cpk-grid,
+[data-density='compact'] .mrb-converter-toolbar,
+[data-density='compact'] .mrb-ollama-threadhead {
+  gap: 5px;
+}
+
+[data-density='compact'] .mrb-card {
+  padding: 10px 12px;
+}
+
+/* ================================================================== */
+/* Responsive stacking                                                 */
+/* ================================================================== */
+
+@media (max-width: 720px) {
+  .mrb-ollama-chat {
+    grid-template-columns: 1fr;
+  }
+
+  .mrb-app-editor {
+    width: min(96vw, 360px);
+  }
+
+  .mrb-updates-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mrb-cpk {
+    max-width: none;
+  }
+
+  .mrb-update-banner {
+    width: 96vw;
+  }
+}
+
+@media (min-resolution: 2dppx) {
+  .mrb-logo-targetfig img {
+    image-rendering: -webkit-optimize-contrast;
+  }
+}
+
+/* Honour reduced motion for every lane-owned transition too */
+@media (prefers-reduced-motion: reduce) {
+  .mrb-converter-drop,
+  .mrb-ollama-copybtn,
+  .mrb-rainbow,
+  .mrb-update-banner,
+  .mrb-update-chip {
+    transition: none;
+  }
+
+  .mrb-rainbow {
+    animation: none;
+  }
+}
