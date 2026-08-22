@@ -1,0 +1,234 @@
+# Release pipeline for Material Roblox.
+#
+# Standing decisions baked into this file (do not undo without an explicit
+# owner decision recorded in the repository):
+#   * GitHub Actions runs NO tests and NO lint in any project. Nothing here
+#     gates the release. A workflow builds, packages, publishes, and attaches
+#     evidence — that is the whole job.
+#   * Every push to main and every workflow_dispatch publishes exactly one new,
+#     uniquely tagged, non-draft GitHub Release carrying a real installer.
+#   * Code signing is permanently prohibited. The installer is unsigned and the
+#     release says so plainly; any signer invocation is a release blocker.
+#
+# Runner note: windows-latest (pinned cloud) is used because no self-hosted
+# runner is guaranteed online; per policy a compatible online self-hosted
+# runner is preferred when one exists — swap `runs-on` when that changes.
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Record workflow start time
+        id: ts-start
+        shell: pwsh
+        run: |
+          $iso = (Get-Date).ToUniversalTime().ToString('o')
+          "started=$iso" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          $iso | Out-File -FilePath workflow-start.txt -Encoding utf8
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so line-count attribution can blame
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # scripts/ensure-electron.mjs and scripts/gen-icons.mjs are owned by the
+      # app-shell lane; they materialize the Electron binary and icon assets.
+      - name: Materialize Electron runtime
+        run: node scripts/ensure-electron.mjs
+
+      - name: Generate icons
+        run: node scripts/gen-icons.mjs
+
+      - name: Build unsigned Squirrel installer
+        run: npx electron-builder --win squirrel --publish never
+        env:
+          # Signing is permanently prohibited: keep every signing input cleared.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          WIN_CSC_LINK: ''
+          WIN_CSC_KEY_PASSWORD: ''
+
+      - name: Verify artifacts exist and are unsigned
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = 'dist/squirrel-windows'
+          if (-not (Test-Path $dir)) { throw "$dir missing — packaging did not produce output" }
+          $exe = Get-ChildItem -Path $dir -Filter *.exe -File | Select-Object -First 1
+          if (-not $exe) { throw "no Setup executable found under $dir" }
+          $sig = Get-AuthenticodeSignature -FilePath $exe.FullName
+          Write-Host "Installer: $($exe.Name) signature status: $($sig.Status)"
+          if ($sig.Status -eq 'Valid') {
+            throw 'installer reports a VALID signature — code signing is prohibited on this project'
+          }
+          if (-not ($sig.Status -in @('NotSigned'))) {
+            Write-Warning "signature status '$($sig.Status)' (expected NotSigned) — treating as unsigned"
+          }
+          if (-not (Test-Path "$dir/RELEASES")) { throw 'RELEASES manifest missing' }
+          $nupkg = Get-ChildItem -Path $dir -Filter *.nupkg -File | Where-Object { $_.Name -notmatch '\-delta\-|\.delta\.' }
+          if (-not $nupkg) { throw 'full .nupkg missing from Squirrel output' }
+          Get-ChildItem $dir | Format-Table Name, Length
+
+      - name: Line count table
+        shell: pwsh
+        run: node scripts/count-lines.mjs > linecount.md
+
+      - name: Build changelog data
+        shell: pwsh
+        run: node scripts/build-changelog.mjs
+
+      - name: Build docs index
+        shell: pwsh
+        run: node scripts/build-docs-index.mjs
+
+      - name: Generate social preview and assert identical copies
+        shell: pwsh
+        run: node scripts/gen-social-preview.mjs
+
+      - name: Compute release metadata (tag + dim-sum code name)
+        shell: pwsh
+        run: node scripts/release-meta.mjs "$env:GITHUB_ENV"
+
+      - name: Assemble release notes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = ($env:GITHUB_ENV -split "`n" | Select-String '^TAG=').ToString().Substring(4)
+          $codeNameLine = ($env:GITHUB_ENV -split "`n" | Select-String '^CODE_NAME=')
+          $codeName = if ($codeNameLine) { $codeNameLine.ToString().Substring(10) } else { '' }
+          $photoLine = ($env:GITHUB_ENV -split "`n" | Select-String '^PHOTO_URL=')
+          $photoUrl = if ($photoLine) { $photoLine.ToString().Substring(10) } else { '' }
+
+          $endIso = (Get-Date).ToUniversalTime().ToString('o')
+          $startIso = (Get-Content workflow-start.txt -Raw).Trim()
+          $duration = '--missing-- (timestamps unavailable — never estimated)'
+          try {
+            $s = [DateTimeOffset]::Parse($startIso)
+            $e = [DateTimeOffset]::Parse($endIso)
+            $d = $e - $s
+            $duration = '{0:00}:{1:00}:{2:00}' -f [int]$d.TotalHours, $d.Minutes, $d.Seconds
+          } catch { Write-Warning 'could not parse timing stamps' }
+
+          $lines = Get-Content linecount.md -Raw
+          $highlights = ''
+          if (Test-Path CHANGELOG.md) {
+            $cl = Get-Content CHANGELOG.md -Raw
+            if ($cl -match '(?s)## \[Unreleased\]\s*(.*?)(\r?\n## )') { $highlights = $Matches[1].Trim() }
+          }
+          if (-not $highlights) {
+            $since = git tag --sort=-creatordate | Select-Object -Skip 1 -First 1
+            if ($LASTEXITCODE -ne 0 -or -not $since) { $since = '' }
+            $range = if ($since) { "$($since)..HEAD" } else { 'HEAD' }
+            $log = git log $range --format='- %s' | Select-Object -First 12
+            $highlights = ($log -join "`n")
+            if (-not $highlights) { $highlights = '- Initial packaging of Material Roblox.' }
+          }
+
+          $dishSection = ''
+          if ($codeName) {
+            $photoMd = if ($photoUrl) { "[dish photo]($photoUrl)" } else { '_public photo asset pending_' }
+            $dishSection = @"
+
+          ## Code name
+
+          **$codeName** — $photoMd
+
+          Code names come once-per-project from the public dim-sum catalog at
+          Ding-Ding-Projects/dim-sum-photos. The photo links to the published public asset;
+          nothing is copied into this repository.
+          "@
+          }
+
+          $notes = @"
+          # Material Roblox $tag
+
+          $dishSection
+
+          ## Highlights
+
+          $highlights
+
+          ## Project size
+
+          $lines
+
+          ## Workflow timing
+
+          - **Workflow started:** $startIso
+          - **Workflow completed:** $endIso
+          - **Workflow duration:** $duration
+
+          ## Checks actually run
+
+          By standing project policy, **no tests and no lint ran** in Actions — nothing in
+          this workflow gates the release, so none is claimed. What actually ran:
+
+          - Dependency install (`npm ci`)
+          - Electron runtime materialization + icon generation
+          - `electron-builder --win squirrel` packaging
+          - Artifact verification: Setup executable present, `Get-AuthenticodeSignature`
+            confirms **NotSigned**, `RELEASES` and the full `.nupkg` present
+          - Documentation index, changelog data, social preview, and line count generation
+
+          ## Installation notes (Windows 10+ x64)
+
+          Download ``MaterialRobloxSetup.exe`` below and run it. This is a genuine
+          Squirrel.Windows installer.
+
+          > [!WARNING]
+          > **This installer is unsigned — by permanent project policy, not by accident.**
+          > Windows SmartScreen and Microsoft Defender may show an unknown-publisher
+          > warning ("Windows protected your PC"). Choose *More info* → *Run anyway* if you
+          > trust this build. No authenticity or signature verification is claimed or implied.
+
+          A portable ZIP build is not offered.
+          "@
+          Set-Content -Path notes.md -Value ($notes -replace '(?m)^          ', '') -Encoding utf8
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = ($env:GITHUB_ENV -split "`n" | Select-String '^TAG=').ToString().Substring(4)
+          gh release create "$tag" dist/squirrel-windows/* `
+            --repo "$env:GITHUB_REPOSITORY" `
+            --title "Material Roblox $tag" `
+            --notes-file notes.md
+          gh release view "$tag" --repo "$env:GITHUB_REPOSITORY" --json isDraft,tagName,assets --jq '{isDraft,tagName,assets:[.assets[].name]}'
+
+      - name: Upload safe outputs (always)
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-${{ github.run_number }}
+          path: |
+            linecount.md
+            notes.md
+            workflow-start.txt
+          retention-days: 14
+          if-no-files-found: warn
