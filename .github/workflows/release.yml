@@ -119,14 +119,22 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           # GITHUB_ENV is the PATH of the env file, not its contents.
-          $meta = Get-Content $env:GITHUB_ENV -Raw
-          $tag = (($meta -split "`n") | Select-String '^TAG=').ToString().Substring(4).Trim()
-          $codeNameLine = (($meta -split "`n") | Select-String '^CODE_NAME=')
-          $codeName = if ($codeNameLine) { $codeNameLine.ToString().Trim() } else { '' }
-          $codeName = if ($codeName) { $codeName.Substring('CODE_NAME='.Length) } else { '' }
-          $photoLine = (($meta -split "`n") | Select-String '^PHOTO_URL=')
-          $photoUrl = if ($photoLine) { $photoLine.ToString().Trim() } else { '' }
-          $photoUrl = if ($photoUrl) { $photoUrl.Substring('PHOTO_URL='.Length) } else { '' }
+          # The runner exports release-meta's keys as step env vars; the
+          # GITHUB_ENV file is only a fallback for runners that do not.
+          function Read-MetaKey([string]$key) {
+            $direct = [Environment]::GetEnvironmentVariable($key)
+            if ($direct -and $direct.Trim()) { return $direct.Trim() }
+            try {
+              $meta = Get-Content $env:GITHUB_ENV -Raw
+              $line = (($meta -split "`n") | Select-String ('^' + $key + '='))
+              if ($line) { return $line.ToString().Trim().Substring($key.Length + 1) }
+            } catch { /* fall through to empty */ }
+            return ''
+          }
+          $tag = Read-MetaKey 'TAG'
+          $codeName = Read-MetaKey 'CODE_NAME'
+          $photoUrl = Read-MetaKey 'PHOTO_URL'
+          if (-not $tag) { throw 'TAG was not provided by the metadata step.' }
 
           $endIso = (Get-Date).ToUniversalTime().ToString('o')
           $startIso = (Get-Content workflow-start.txt -Raw).Trim()
@@ -219,8 +227,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
-          $meta = Get-Content $env:GITHUB_ENV -Raw
-          $tag = (($meta -split "`n") | Select-String '^TAG=').ToString().Substring(4).Trim()
+          $tag = $env:TAG
+          if (-not $tag) {
+            $meta = Get-Content $env:GITHUB_ENV -Raw
+            $tag = (($meta -split "`n") | Select-String '^TAG=').ToString().Substring(4).Trim()
+          }
           gh release create "$tag" dist/squirrel-windows/* `
             --repo "$env:GITHUB_REPOSITORY" `
             --title "Material Roblox $tag" `
