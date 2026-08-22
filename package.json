@@ -1,0 +1,30 @@
+{
+  "name": "material-roblox",
+  "productName": "Material Roblox",
+  "version": "1.0.0",
+  "description": "A Material Design 3 desktop explorer for Roblox APIs",
+  "author": "Ding-Ding-Projects",
+  "license": "MIT",
+  "main": "app/main.js",
+  "scripts": {
+    "ensure-electron": "node scripts/ensure-electron.mjs",
+    "prestart": "npm run ensure-electron",
+    "start": "electron .",
+    "icons": "node scripts/gen-icons.mjs",
+    "predist": "npm run ensure-electron && npm run icons",
+    "dist": "electron-builder --win squirrel --publish never",
+    "count-lines": "node scripts/count-lines.mjs"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2",
+    "isomorphic-git": "^1.41.8",
+    "pdf-lib": "^1.17.1",
+    "pngjs": "^7.0.0",
+    "yaml": "^2.6.0"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^26.0.12",
+    "electron-builder-squirrel-windows": "26.15.3"
+  }
+}
