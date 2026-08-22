@@ -523,11 +523,13 @@ function renderList(bodyEl) {
       },
     });
   });
-  const updateBulkBar = () => {
+  // Function declaration, not a const arrow: renderList() above calls this
+  // during first paint, so it must be hoisted or the tab dies on load (TDZ).
+  function updateBulkBar() {
     const checked = rowsHolder.querySelectorAll('input[data-bulk-id]:checked').length;
     countBadge.textContent = tr('auth.selectedCount', `${checked} selected`, `已揀 ${checked} 個`);
     delSelected.disabled = checked === 0;
-  };
+  }
   rowsHolder.addEventListener('change', updateBulkBar);
   bulkBar.append(countBadge, delSelected);
 
