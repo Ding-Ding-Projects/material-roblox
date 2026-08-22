@@ -38,7 +38,7 @@ jobs:
         with:
           fetch-depth: 0 # full history so line-count attribution can blame
 
-      - name: Record workflow start time (after checkout: it would be wiped by the workspace clean otherwise)
+      - name: 'Record workflow start time (after checkout - the workspace clean would wipe it)'
         id: ts-start
         shell: pwsh
         run: |
@@ -46,6 +46,12 @@ jobs:
           "started=$iso" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           $iso | Out-File -FilePath workflow-start.txt -Encoding utf8
 
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
