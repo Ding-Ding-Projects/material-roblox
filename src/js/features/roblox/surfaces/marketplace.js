@@ -20,6 +20,7 @@ import {
   paginationControls, resultCard, skeletonCards, statChip, thumbImg,
 } from '../cards.js';
 import { createSearchBar } from '../searchbar.js';
+import { rowMatcher, regexErrorMessage } from '../safe-regex.js';
 import { exportButton } from './helpers.js';
 
 const el = (...args) => ui.el(...args);
@@ -60,6 +61,9 @@ async function render(rootEl) {
       keyword: '', category: '', minPrice: '', maxPrice: '',
       creatorTargetId: '', sortType: 'Relevance',
     },
+    /** Local result filter state; predicate over loaded rows or null. */
+    filterMatcher: null,
+    filterQuery: '',
   };
 
   /* ── filter bar ──────────────────────────────────────────────────────────── */
@@ -102,6 +106,69 @@ async function render(rootEl) {
   const filterBar = el('div', { class: 'rbx-toolbar rbx-market__filters' },
     keywordInput, categorySelect, minPrice, maxPrice, creatorInput, sortSelect, applyBtn);
 
+  /* local result filter — regex-capable, applied client-side to loaded results.
+     The keyword field above stays server-side (the catalog search endpoint
+     takes plain keywords), so this second bar is what honors regex mode here.
+     An invalid pattern keeps the previous grid and reports inline, never throws. */
+  const localFilterErr = el('p', { class: 'rbx-muted', role: 'alert', hidden: true });
+  const localFilter = await createSearchBar({
+    placeholder: tr('roblox.market.filterPlaceholder', 'Filter loaded results…', '篩選已載入結果……'),
+    ariaLabel: tr('roblox.market.filterLabel', 'Filter the loaded results locally', '喺本地篩選已載入結果'),
+    historyKey: 'marketplace-filter',
+    submitLabel: tr('roblox.market.filterApply', 'Filter', '篩選'),
+    supportsRegex: true,
+    onQuery: (q, ctx) => applyLocalFilter(q, ctx),
+  });
+  const localFilterWrap = el('div', { class: 'rbx-market__localfilter' }, localFilter.root, localFilterErr);
+
+  /** Fields a marketplace result row is filtered against. */
+  const resultFields = (r) => [r.name, creatorNameOf(r), r.itemType || r.assetType || '', r.id];
+
+  function clearLocalFilterError() {
+    localFilterErr.textContent = '';
+    localFilterErr.hidden = true;
+  }
+
+  /** Commit a new local result filter; a bad pattern keeps the last good one. */
+  function applyLocalFilter(q, ctx) {
+    clearLocalFilterError();
+    const raw = String(q ?? '').trim();
+    if (!raw) {
+      state.filterQuery = '';
+      state.filterMatcher = null;
+      paint();
+      return;
+    }
+    const wantRegex = ctx && ctx.mode === 'regex';
+    const flags = ctx && typeof ctx.flags === 'string' ? ctx.flags : '';
+    const built = rowMatcher(raw, { mode: wantRegex ? 'regex' : 'plain', flags }, resultFields);
+    if (!built.ok) {
+      localFilterErr.textContent = regexErrorMessage(built.error, tr);
+      localFilterErr.hidden = false;
+      paint();
+      return;
+    }
+    state.filterQuery = raw;
+    state.filterMatcher = built.test;
+    paint();
+  }
+
+  /** Honest empty state when the local filter matches nothing that was loaded. */
+  function localFilterEmptyState() {
+    return emptyState('🔍',
+      tr('roblox.market.filterNoneTitle', 'No loaded result matches this filter', '已載入嘅結果冇一件符合呢個篩選'),
+      tr('roblox.market.filterNoneBody',
+        `Nothing among the ${state.results.length} loaded items matches "${state.filterQuery}". Widen the pattern or clear it.`,
+        `已載入嘅 ${state.results.length} 件物品之中冇一件符合「${state.filterQuery}」。放寬個式或者清除佢。`),
+      {
+        label: tr('roblox.market.filterClear', 'Clear filter', '清除篩選'),
+        onClick: () => {
+          localFilter.setValue('');
+          applyLocalFilter('', null);
+        },
+      });
+  }
+
   /* ── results area ────────────────────────────────────────────────────────── */
 
   const gridSlot = el('div', {});
@@ -125,6 +192,7 @@ async function render(rootEl) {
       'Search the public catalog. Price filters use Robux.',
       '搜尋公開市集。價錢篩選用 Robux。')),
     filterBar,
+    localFilterWrap,
     ...(exportRow ? [exportRow] : []),
     gridSlot, pagerSlot, statusLine);
 
@@ -244,12 +312,22 @@ async function render(rootEl) {
       return;
     }
 
-    const thumbs = await batchThumbnails(state.results.slice(-30).map((r) => ({
+    // Local filter applies to the loaded set only; the grid shows the match.
+    const visible = state.filterMatcher
+      ? state.results.filter((r) => state.filterMatcher(r))
+      : state.results;
+    if (state.filterMatcher && !visible.length) {
+      gridSlot.appendChild(localFilterEmptyState());
+      announce(tr('roblox.market.filterNoneAnnounce', 'No loaded result matches the filter', '已載入結果冇一件符合篩選'));
+      return;
+    }
+
+    const thumbs = await batchThumbnails(visible.slice(-30).map((r) => ({
       type: 'Asset', targetId: r.id, size: '420x420',
     })));
 
     const grid = gridContainer({ minCol: 240, label: tr('roblox.market.gridLabel', 'Marketplace results', '市集結果') });
-    for (const r of state.results.slice(-60)) {
+    for (const r of visible.slice(-60)) {
       const price = lowestPrice(r);
       const t = thumbs.get(String(r.id));
       grid.appendChild(resultCard({
@@ -276,7 +354,11 @@ async function render(rootEl) {
 
     pagerSlot.appendChild(paginationControls({
       next: state.cursor ? () => applyFilters(false) : null,
-      hint: tr('roblox.common.loadedCount', `${formatNumber(state.results.length)} loaded`, `已載入 ${formatNumber(state.results.length)}`),
+      hint: state.filterMatcher
+        ? tr('roblox.market.filteredCount',
+          `${formatNumber(visible.length)} match · ${formatNumber(state.results.length)} loaded`,
+          `${formatNumber(visible.length)} 件符合 · 已載入 ${formatNumber(state.results.length)}`)
+        : tr('roblox.common.loadedCount', `${formatNumber(state.results.length)} loaded`, `已載入 ${formatNumber(state.results.length)}`),
     }));
 
     announce(tr('roblox.market.loadedAnnounce', `Marketplace: ${state.results.length} items loaded`,

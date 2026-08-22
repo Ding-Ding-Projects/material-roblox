@@ -4,23 +4,50 @@ Status legend: `[x]` shipped and verified · `[~]` implemented, verification
 pending (named below) · `[ ]` not started · `~~struck~~` deliberately dropped,
 with the reason kept so a decision never reads as an oversight.
 
-## Phase 1 — Core application (implemented)
+## Phase 1 — Core application
 
-- [x] Electron 33 shell: frameless Material title bar, single-instance lock,
+### Shipped and verified in releases v1.0.0-build.7 / v1.0.0-build.8
+
+These carry direct release evidence — published tags, workflow runs, and
+artifacts that can be opened today — which is what earns the tick.
+
+- [x] Squirrel.Windows installer published by the release workflow at both
+      tags (`v1.0.0-build.7`, `v1.0.0-build.8`); its unsigned status is
+      disclosed prominently rather than hidden
+- [x] Static landing/docs site deployed through the Pages workflow
+- [x] Release and Pages pipelines (`.github/workflows/release.yml`,
+      `.github/workflows/pages.yml`) triggering on push and
+      `workflow_dispatch`; the two published tags came out of them
+- [x] Adversarial-review fixes: the boot-link repair plus eight confirmed
+      defect closures (commit `8087d25`) and the pipeline shakedown
+      (commit `0560758`), both inside the tagged history
+- [x] Repository auditors committed at the tagged commits:
+      `scripts/audit-imports.mjs` (re-run green in the polish pass),
+      `scripts/check-vocabulary.mjs`, `scripts/count-lines.mjs` (its table is
+      what the build.7 release notes publish), and
+      `scripts/gen-social-preview.mjs` with its byte-identity assertion
+
+### Implemented and shipped in the build.7/8 installers — behaviour verification pending
+
+Everything below is inside the released installers, but no executed test
+suite or built-artifact capture yet backs the behaviour claims; `lane/tests`
+and `lane/captures` are in flight against this tree.
+
+- [~] Electron 33 shell: frameless Material title bar, single-instance lock,
       strict CSP, generic validated IPC bridge
-- [x] Roblox surfaces: users, friends, groups, games, marketplace, inventory,
+- [~] Roblox surfaces: users, friends, groups, games, marketplace, inventory,
       compare, session manager; economy + presence behind session auth
-- [x] Core UX: dockable tab strip with pin/groups/discovery searches/bulk close;
+- [~] Core UX: dockable tab strip with pin/groups/discovery searches/bulk close;
       command palette (`Ctrl+Shift+F`) with rich rows and teleport; anchored
       regex builder on every search field/dropdown/context menu; non-blocking
       notification centre with bulk actions; Git-backed local history with date
       + action filters; exporter (JSON/JSONL/YAML/TOML/XML/CSV/TSV/MD/HTML/
       SQL/ZIP); changelog viewer
-- [x] Appearance: M3 tokens light+dark, density, accent seed, infinite colour
+- [~] Appearance: M3 tokens light+dark, density, accent seed, infinite colour
       picker with translator and animated-rainbow sentinel, word-depth
       typography editor, per-element appearance editing, app-logo presets with
       bounded local conversion
-- [x] Delight & safety: OS-vault session storage; destructive super
+- [~] Delight & safety: OS-vault session storage; destructive super
       confirmation (two keys + slider); toy locks with per-element credentials;
       unlock ladder (budgeted, clears waiting only); Support Tickets desk;
       RFC 6238 authenticator with in-process QR pairing; opt-in narrator with
@@ -29,19 +56,18 @@ with the reason kept so a decision never reads as an oversight.
       settings with external sources; file converter with sandboxed offline
       adapters; Ollama suite manager; Chrome-style auto-updater over an
       unsigned feed
-- [x] Site & repo: static landing/docs site (tabbed, themed, bilingual),
-      feature documentation set, release + Pages workflows, line counter,
-      social-preview generator with byte-identity assertion
 
 ## Phase 2 — Verification debt (deliberate, named)
 
 The ultra-speed delivery pass shipped Phase 1 without tests or captures. That
 was a decision, recorded here rather than hidden; these items are the payback.
+The `lane/tests` and `lane/captures` worktrees are in flight right now, which
+is why nothing here is ticked.
 
 - [~] Automated test suites (unit + interaction) for all Phase 1 modules —
-      *not yet run by design during the ultra-speed pass*
+      *lane/tests in flight*
 - [~] Real built-artifact screenshot evidence for every user-facing surface —
-      *captures pending; nothing fake is published meanwhile*
+      *lane/captures in flight; nothing fake is published meanwhile*
 - [~] Design-reference parity captures (reference app vs real build at
       identical screen/state/theme/viewport/scale tuples)
 - [~] Accessibility audit pass (screen-reader walkthroughs, contrast checks in
@@ -73,4 +99,6 @@ was a decision, recorded here rather than hidden; these items are the payback.
 
 Items marked `[~]` are implemented but unverified: their claims come from code
 review, not from executed tests or built-artifact captures. They stay unticked
-until the evidence exists.
+until the evidence exists. The Phase 1 split keeps the same rule in both
+directions: only what a reader can verify from a published release today stays
+ticked, and shipping alone never upgrades an unverified behaviour claim.
