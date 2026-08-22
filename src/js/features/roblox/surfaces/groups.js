@@ -226,17 +226,20 @@ async function render(rootEl) {
         return;
       }
       const sorted = [...rolesData].sort((a, b) => (b.rank ?? 0) - (a.rank ?? 0));
+      const rows = sorted.map((r) => el('tr', {},
+        el('td', {}, r.name),
+        el('td', {}, String(r.rank ?? '—')),
+        el('td', {}, r.memberCount != null
+          ? formatNumber(r.memberCount)
+          : el('span', { class: 'rbx-muted', title: tr('roblox.groups.membersHidden', 'Not provided by this endpoint', '呢個 API 冇提供') }, '—'))));
+      const headRow = el('tr', {},
+        el('th', { scope: 'col' }, tr('roblox.groups.roleName', 'Role', '角色')),
+        el('th', { scope: 'col' }, tr('roblox.groups.roleRank', 'Rank', '階級')),
+        el('th', { scope: 'col' }, tr('roblox.groups.roleMembers', 'Members', '成員')));
       const table = el('table', { class: 'mrb-table rbx-table' },
         el('caption', { class: 'rbx-visually-hidden' }, tr('roblox.groups.rolesCaption', 'Group roles by rank', '按階級排列嘅群組角色')),
-        el('thead', {}, el('tr', {},
-          el('th', { scope: 'col' }, tr('roblox.groups.roleName', 'Role', '角色')),
-          el('th', { scope: 'col' }, tr('roblox.groups.roleRank', 'Rank', '階級')),
-          el('th', { scope: 'col' }, tr('roblox.groups.roleMembers', 'Members', '成員')))),
-        el('tbody', {}, ...sorted.map((r) => el('tr', {},
-          el('td', {}, r.name),
-          el('td', {}, String(r.rank ?? '—')),
-          el('td', {}, r.memberCount != null ? formatNumber(r.memberCount)
-            : el('span', { class: 'rbx-muted', title: tr('roblox.groups.membersHidden', 'Not provided by this endpoint', '呢個 API 冇提供') }, '—')))))));
+        el('thead', {}, headRow),
+        el('tbody', {}, ...rows));
       tableSlot.appendChild(table);
     }).catch((err) => {
       tableSlot.textContent = '';

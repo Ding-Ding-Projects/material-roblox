@@ -146,7 +146,7 @@ async function paintBoard(body) {
         tr('roblox.presence.noSavedBody',
           'The board watches your saved list. Save profiles from the Users tab and they appear here.',
           '呢塊板會監察你嘅收藏清單。喺 Users 分頁收藏個人檔案，佢哋就會喺度出現。'),
-        { label: tr('roblox.presence.openUsers', 'Open Users', '開啟 Users'), onClick: () => router.navigate('roblox-users') })));
+        { label: tr('roblox.presence.openUsers', 'Open Users', '開啟 Users'), onClick: () => router.navigate('roblox-users') }));
       updatedLine.textContent = '';
       return;
     }

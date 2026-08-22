@@ -40,18 +40,9 @@ const BOOT = [
   ['history', './js/core/history.js'],
   ['exporter', './js/core/exporter.js'],
   ['bulk', './js/core/bulk.js'],
-  // Roblox surfaces (one file per tab).
-  ['roblox-home', './js/features/roblox/home.js'],
-  ['roblox-users', './js/features/roblox/users.js'],
-  ['roblox-friends', './js/features/roblox/friends.js'],
-  ['roblox-groups', './js/features/roblox/groups.js'],
-  ['roblox-games', './js/features/roblox/games.js'],
-  ['roblox-marketplace', './js/features/roblox/marketplace.js'],
-  ['roblox-inventory', './js/features/roblox/inventory.js'],
-  ['roblox-economy', './js/features/roblox/economy.js'],
-  ['roblox-presence', './js/features/roblox/presence.js'],
-  ['roblox-session', './js/features/roblox/session.js'],
-  ['roblox-compare', './js/features/roblox/compare.js'],
+  // Roblox surfaces: the lane's aggregator registers every tab and isolates
+  // failures per surface, so the boot manifest loads it once.
+  ['roblox', './js/features/roblox/index.js'],
   // Tools and finishing touches.
   ['dimsum', './js/core/dimsum.js'],
   ['converter', './js/core/converter.js'],
@@ -163,6 +154,23 @@ async function boot() {
       /* toast surface unavailable - the console record above still stands */
     }
   }
+
+  // Cross-lane glue (integration seam): locked tabs stay out of bulk closes,
+  // and an actually-present appearance editor stops the honest not-installed toast.
+  try {
+    const locks = await import('./js/core/locks.js');
+    if (locks && typeof locks.isLocked === 'function' && typeof router.setLockProbe === 'function') {
+      router.setLockProbe((targetId) => {
+        try { return Boolean(locks.isLocked(targetId)); } catch { return false; }
+      });
+    }
+  } catch { /* locks unavailable - bulk close simply has no lock exclusions */ }
+  try {
+    const appearance = await import('./js/core/appearance.js');
+    if (appearance && typeof appearance.editElement === 'function') {
+      window.__mrbAppearanceEditorReady = true;
+    }
+  } catch { /* appearance unavailable - the router reports that honestly */ }
 
   registerPaletteShortcut();
 
