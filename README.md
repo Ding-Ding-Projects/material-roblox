@@ -85,20 +85,47 @@ embed graphic.
 
 ## Screenshots
 
-Real built-artifact captures are **pending by deliberate decision** — the
-ultra-speed delivery pass skipped screenshot evidence to ship fast, and no
-placeholder image is published in its place. See [ROADMAP.md](ROADMAP.md)
-Phase 2 for the tracked capture work. The tables below name what will be
-captured:
+Real built-artifact captures, taken 2026-08-22 from the actual running app
+(built from `lane/captures` @ `8362077`) through the cheap Lowlevel headless
+desktop route — the app was launched on an off-screen Windows desktop with
+`--remote-debugging-port` and photographed via per-window capture; every PNG
+was pixel-verified non-uniform after capture. A machine-readable record of
+each capture lives in
+[docs/screenshots/MANIFEST.json](docs/screenshots/MANIFEST.json).
+
+<details>
+<summary>Capture matrix — six surfaces (click to expand)</summary>
+
+![Boot state: Material Roblox window with custom title bar, left vertical tab strip, Personal vocabulary panel, and a non-blocking "failed" API toast in the corner (the capture sandbox has no Roblox network access)](docs/screenshots/01-home-boot.png)
+
+![Users tab active in the tab strip: user lookup field with Plain/regex search affordance, Find button, and honest empty state "Search for a player"](docs/screenshots/02-tab-strip-users.png)
+
+![Settings surface with its own search bar and horizontal settings tabs; Appearance sub-tab active showing accent seed colour, density select, font-size slider, default-provenance lines and per-setting reset buttons](docs/screenshots/03-settings-appearance.png)
+
+![Authenticator tab failing to render: error boundary showing "This tab could not load. Cannot access 'updateBulkBar' before initialization" with a Retry button — a real defect, reproduced on retry](docs/screenshots/04-authenticator.png)
+
+![Command palette open over content: search input with Plain/regex toggle, rich result rows including inline live controls, keyboard hints footer and a Full window view toggle](docs/screenshots/05-palette-open.png)
+
+![Converter tab: queue controls, honest "queue empty" chip, local-only drop zone, and the categorized adapter catalog with per-category bundled counts including honest unbundled gaps (Audio 0/3, Video 0/2)](docs/screenshots/06-converter.png)
+
+</details>
+
+**Failed state, honestly pending:** the Authenticator tab cannot render its
+healthy QR-pairing surface — it throws
+`Cannot access 'updateBulkBar' before initialization`
+(`src/js/core/authenticator.js` calls `updateBulkBar()` at lines 472/481
+before its `const` definition at line 526). The capture above records the
+real error state; Retry reproduces it deterministically.
+
+Also still pending (not part of the six-state matrix above): a populated
+Roblox user profile card (the capture sandbox has no Roblox network access)
+and the colour picker with the rainbow sentinel active.
 
 | Surface | State to capture |
 | --- | --- |
-| Home / hero | dark theme, default accent |
 | Roblox user lookup | populated profile card |
-| Tab strip + palette | `Ctrl+Shift+F` open over content |
-| Settings | appearance group, bilingual mode |
 | Colour picker | rainbow sentinel active |
-| Authenticator | QR pairing screen |
+| Authenticator | QR pairing screen (blocked by the `updateBulkBar` defect above) |
 
 ## Build from source
 
