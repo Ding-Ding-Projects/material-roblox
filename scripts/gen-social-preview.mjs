@@ -250,12 +250,12 @@ function render() {
   const wordmark = 'Material Roblox';
   const wmCap = 118 * SS;
   const wmWidth = measure(wordmark, wmCap);
-  drawTextProper(buf, wordmark, (SW - wmWidth) / 2, 512 * SS, wmCap, 13.5 * SS, 255, 255, 255, 1);
+  drawText(buf, wordmark, (SW - wmWidth) / 2, 512 * SS, wmCap, 13.5 * SS, 255, 255, 255, 1);
 
   const subtitle = 'Material Design 3 explorer for Roblox APIs';
   const subCap = 40 * SS;
   const subWidth = measure(subtitle, subCap);
-  drawTextProper(buf, subtitle, (SW - subWidth) / 2, 582 * SS, subCap, 4.6 * SS, 255, 232, 222, 0.92);
+  drawText(buf, subtitle, (SW - subWidth) / 2, 582 * SS, subCap, 4.6 * SS, 255, 232, 222, 0.92);
 
   // Corner badge: rounded pill + org name + yellow dot.
   const badgeText = 'Ding-Ding-Projects';
@@ -289,7 +289,7 @@ function render() {
         if (cov > 0) blend(buf, px2, py, 255, 213, 79, cov);
       }
     }
-    drawTextProper(buf, badgeText, pxr + padX + 34 * SS, pyr + pillH / 2 + bCap * 0.36, bCap, 3.1 * SS, 255, 255, 255, 0.95);
+    drawText(buf, badgeText, pxr + padX + 34 * SS, pyr + pillH / 2 + bCap * 0.36, bCap, 3.1 * SS, 255, 255, 255, 0.95);
   }
 
   // Downsample SS×SS -> final RGBA.

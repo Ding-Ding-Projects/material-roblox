@@ -47,15 +47,23 @@ async function fetchCatalog() {
   const json = await res.json();
   // Defensive shape handling: accept {dishes:[...]} or a bare array.
   const list = Array.isArray(json) ? json : json.dishes || json.items || [];
+  // Photos live as release ASSETS named after image.path's basename, split
+  // across the catalog-v1* releases. Build every candidate URL; the HEAD
+  // check below decides which one actually serves bytes.
+  const PHOTO_TAGS = ['catalog-v1', 'catalog-v1-part-002', 'catalog-v1-part-003'];
   const out = [];
   for (const d of list) {
     const en = d?.name?.en;
     const zh = d?.name?.zhHant || d?.name?.zh || '';
-    const photo = d?.photo?.url || d?.image?.url || d?.photoUrl ||
-      (Array.isArray(d?.photos) && d.photos[0]?.url) ||
-      (typeof d?.photo === 'string' ? d.photo : null);
-    if (!en || !photo) continue;
-    out.push({ en, zh, photo });
+    const relPath = typeof d?.image?.path === 'string' ? d.image.path : '';
+    const base = relPath ? relPath.split('/').pop() : '';
+    if (!en || !base) continue;
+    out.push({
+      en,
+      zh,
+      photo: PHOTO_TAGS.map((tag) =>
+        `https://github.com/Ding-Ding-Projects/dim-sum-photos/releases/download/${tag}/${encodeURIComponent(base)}`),
+    });
   }
   out.sort((a, b) => a.en.localeCompare(b.en, 'en'));
   return out;
@@ -77,11 +85,9 @@ function priorCodeNames() {
       used.add(m[1].trim());
     }
   };
-  scanBodies(run(['release', 'list', '--repo', REPO, '--limit', '200', '--json', 'name,body', '--jq', '.[] | .body']));
-  try {
-    const pages = run(['api', `repos/${REPO}/releases`, '--paginate', '--jq', '.[].body']);
-    scanBodies(pages);
-  } catch { /* covered by warn inside run */ }
+  // gh's `release list` rejects a `body` field on some CLI versions; the
+  // REST API path is stable and returns bodies directly.
+  scanBodies(run(['api', `repos/${REPO}/releases`, '--paginate', '--jq', '.[].body']));
   return used;
 }
 
@@ -113,9 +119,13 @@ async function main() {
         const label = d.zh ? `${d.en} · ${d.zh}` : d.en;
         const candidates = [label, d.en].map(normalize);
         if (candidates.some((c) => usedNorm.has(c))) continue;
-        if (await headOk(d.photo)) {
+        let live = null;
+        for (const candidateUrl of d.photo) {
+          if (await headOk(candidateUrl)) { live = candidateUrl; break; }
+        }
+        if (live) {
           codeName = label;
-          photoUrl = d.photo;
+          photoUrl = live;
           break;
         }
         warn(`candidate "${d.en}" photo not reachable (HEAD failed); trying next`);
