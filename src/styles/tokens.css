@@ -1,0 +1,280 @@
+/**
+ * Material Roblox - Material Design 3 role tokens.
+ *
+ * Dark is the baseline (:root). Light overrides under [data-theme="light"].
+ * System-following surfaces under html[data-theme="system"] via the
+ * prefers-color-scheme media query (dark baseline needs no override).
+ *
+ * Naming: --mrb-<role>. Shape, elevation, state-layer opacity, motion and the
+ * 2021 type scale are included. The rainbow custom properties are placeholders
+ * consumed by their owning lane through one global duration variable; a hue
+ * sentinel value must never be stored as a color string by callers.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Primary (seeded from the brand red) */
+  --mrb-primary: #ffb4ab;
+  --mrb-on-primary: #690005;
+  --mrb-primary-container: #93000a;
+  --mrb-on-primary-container: #ffdad6;
+
+  /* Secondary */
+  --mrb-secondary: #e7bdb6;
+  --mrb-on-secondary: #442926;
+  --mrb-secondary-container: #5d3f3b;
+  --mrb-on-secondary-container: #ffdad6;
+
+  /* Tertiary (warm gold) */
+  --mrb-tertiary: #e8c28c;
+  --mrb-on-tertiary: #402d04;
+  --mrb-tertiary-container: #5c4300;
+  --mrb-on-tertiary-container: #ffdea6;
+
+  /* Error */
+  --mrb-error: #ffb4ab;
+  --mrb-on-error: #690005;
+  --mrb-error-container: #93000a;
+  --mrb-on-error-container: #ffdad6;
+
+  /* Surfaces */
+  --mrb-surface: #141218;
+  --mrb-surface-dim: #141218;
+  --mrb-surface-brightest: #3b3833;
+  --mrb-surface-container-lowest: #0f0d13;
+  --mrb-surface-container-low: #1c1b20;
+  --mrb-surface-container: #201f23;
+  --mrb-surface-container-high: #2b2930;
+  --mrb-surface-container-highest: #36343b;
+  --mrb-on-surface: #e6e0e9;
+  --mrb-on-surface-variant: #cac4d0;
+  --mrb-outline: #948f99;
+  --mrb-outline-variant: #49454f;
+  --mrb-inverse-surface: #e6e0e9;
+  --mrb-inverse-on-surface: #34303b;
+  --mrb-inverse-primary: #ffb4ab;
+  --mrb-scrim: #000000;
+  --mrb-shadow: #000000;
+
+  /* Typography family + mono */
+  --mrb-font-family:
+    "Roboto Flex", "Roboto", "Segoe UI", system-ui, -apple-system, "Noto Sans",
+    "Microsoft JhengHei", "PingFang TC", sans-serif;
+  --mrb-font-mono:
+    "Cascadia Code", "Consolas", "JetBrains Mono", ui-monospace, monospace;
+
+  /* Shape scale */
+  --mrb-shape-xs: 4px;
+  --mrb-shape-sm: 8px;
+  --mrb-shape-md: 12px;
+  --mrb-shape-lg: 16px;
+  --mrb-shape-xl: 28px;
+  --mrb-shape-full: 999px;
+
+  /* Elevation (dark-theme tinted shadows per M3) */
+  --mrb-elev-0: none;
+  --mrb-elev-1:
+    0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px 1px rgba(0, 0, 0, 0.15);
+  --mrb-elev-2:
+    0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 6px 2px rgba(0, 0, 0, 0.15);
+  --mrb-elev-3:
+    0 4px 8px 3px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --mrb-elev-4:
+    0 6px 10px 4px rgba(0, 0, 0, 0.15), 0 2px 3px rgba(0, 0, 0, 0.3);
+  --mrb-elev-5:
+    0 8px 12px 6px rgba(0, 0, 0, 0.15), 0 4px 4px rgba(0, 0, 0, 0.3);
+
+  /* State-layer opacities */
+  --mrb-state-hover: 0.08;
+  --mrb-state-press: 0.12;
+  --mrb-state-drag: 0.16;
+  --mrb-state-focus: 0.1;
+
+  /* Motion durations */
+  --mrb-motion-short: 150ms;
+  --mrb-motion-med: 300ms;
+  --mrb-motion-long: 500ms;
+  /* Motion easings */
+  --mrb-motion-standard: cubic-bezier(0.2, 0, 0, 1);
+  --mrb-motion-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --mrb-motion-decel: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --mrb-motion-accel: cubic-bezier(0.3, 0, 0.8, 0.15);
+
+  /* Type scale: display */
+  --mrb-type-display-lg-size: 57px;
+  --mrb-type-display-lg-line-height: 64px;
+  --mrb-type-display-lg-weight: 400;
+  --mrb-type-display-lg-tracking: -0.25px;
+  --mrb-type-display-md-size: 45px;
+  --mrb-type-display-md-line-height: 52px;
+  --mrb-type-display-md-weight: 400;
+  --mrb-type-display-md-tracking: 0px;
+  --mrb-type-display-sm-size: 36px;
+  --mrb-type-display-sm-line-height: 44px;
+  --mrb-type-display-sm-weight: 400;
+  --mrb-type-display-sm-tracking: 0px;
+
+  /* Headline */
+  --mrb-type-headline-lg-size: 32px;
+  --mrb-type-headline-lg-line-height: 40px;
+  --mrb-type-headline-lg-weight: 400;
+  --mrb-type-headline-lg-tracking: 0px;
+  --mrb-type-headline-md-size: 28px;
+  --mrb-type-headline-md-line-height: 36px;
+  --mrb-type-headline-md-weight: 400;
+  --mrb-type-headline-md-tracking: 0px;
+  --mrb-type-headline-sm-size: 24px;
+  --mrb-type-headline-sm-line-height: 32px;
+  --mrb-type-headline-sm-weight: 400;
+  --mrb-type-headline-sm-tracking: 0px;
+
+  /* Title */
+  --mrb-type-title-lg-size: 22px;
+  --mrb-type-title-lg-line-height: 28px;
+  --mrb-type-title-lg-weight: 400;
+  --mrb-type-title-lg-tracking: 0px;
+  --mrb-type-title-md-size: 16px;
+  --mrb-type-title-md-line-height: 24px;
+  --mrb-type-title-md-weight: 500;
+  --mrb-type-title-md-tracking: 0.15px;
+  --mrb-type-title-sm-size: 14px;
+  --mrb-type-title-sm-line-height: 20px;
+  --mrb-type-title-sm-weight: 500;
+  --mrb-type-title-sm-tracking: 0.1px;
+
+  /* Body */
+  --mrb-type-body-lg-size: 16px;
+  --mrb-type-body-lg-line-height: 24px;
+  --mrb-type-body-lg-weight: 400;
+  --mrb-type-body-lg-tracking: 0.5px;
+  --mrb-type-body-md-size: 14px;
+  --mrb-type-body-md-line-height: 20px;
+  --mrb-type-body-md-weight: 400;
+  --mrb-type-body-md-tracking: 0.25px;
+  --mrb-type-body-sm-size: 12px;
+  --mrb-type-body-sm-line-height: 16px;
+  --mrb-type-body-sm-weight: 400;
+  --mrb-type-body-sm-tracking: 0.4px;
+
+  /* Label */
+  --mrb-type-label-lg-size: 14px;
+  --mrb-type-label-lg-line-height: 20px;
+  --mrb-type-label-lg-weight: 500;
+  --mrb-type-label-lg-tracking: 0.1px;
+  --mrb-type-label-md-size: 12px;
+  --mrb-type-label-md-line-height: 16px;
+  --mrb-type-label-md-weight: 500;
+  --mrb-type-label-md-tracking: 0.5px;
+  --mrb-type-label-sm-size: 11px;
+  --mrb-type-label-sm-line-height: 16px;
+  --mrb-type-label-sm-weight: 500;
+  --mrb-type-label-sm-tracking: 0.5px;
+
+  /* Animated rainbow placeholders. One global duration published once;
+     --mrb-rainbow-hue is driven by @property rotation in the owner lane's
+     stylesheet. These are never used as literal color strings. */
+  --mrb-rainbow-duration: 12s;
+  --mrb-rainbow-hue: 0turn;
+
+  /* Layout helpers shared across components */
+  --mrb-titlebar-height: 40px;
+  --mrb-touch-target: 48px;
+}
+
+/* ------------------------------- Light theme ------------------------------ */
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --mrb-primary: #a03b32;
+  --mrb-on-primary: #ffffff;
+  --mrb-primary-container: #ffdad5;
+  --mrb-on-primary-container: #410002;
+
+  --mrb-secondary: #775652;
+  --mrb-on-secondary: #ffffff;
+  --mrb-secondary-container: #ffdad5;
+  --mrb-on-secondary-container: #2c1512;
+
+  --mrb-tertiary: #6f5a2e;
+  --mrb-on-tertiary: #ffffff;
+  --mrb-tertiary-container: #fbde9f;
+  --mrb-on-tertiary-container: #241a00;
+
+  --mrb-error: #ba1a1a;
+  --mrb-on-error: #ffffff;
+  --mrb-error-container: #ffdad6;
+  --mrb-on-error-container: #410002;
+
+  --mrb-surface: #fff8f7;
+  --mrb-surface-dim: #e8d7d5;
+  --mrb-surface-brightest: #ffffff;
+  --mrb-surface-container-lowest: #ffffff;
+  --mrb-surface-container-low: #fdf2f0;
+  --mrb-surface-container: #f7eceb;
+  --mrb-surface-container-high: #f1e6e4;
+  --mrb-surface-container-highest: #ebe0de;
+  --mrb-on-surface: #211a19;
+  --mrb-on-surface-variant: #534341;
+  --mrb-outline: #857370;
+  --mrb-outline-variant: #d8c2bf;
+  --mrb-inverse-surface: #362f2e;
+  --mrb-inverse-on-surface: #fbeeea;
+  --mrb-inverse-primary: #ffb4ab;
+
+  --mrb-elev-1:
+    0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px 1px rgba(0, 0, 0, 0.15);
+  --mrb-elev-2:
+    0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 6px 2px rgba(0, 0, 0, 0.15);
+  --mrb-elev-3:
+    0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 8px 3px rgba(0, 0, 0, 0.15);
+  --mrb-elev-4:
+    0 2px 3px rgba(0, 0, 0, 0.3), 0 6px 10px 4px rgba(0, 0, 0, 0.15);
+  --mrb-elev-5:
+    0 4px 4px rgba(0, 0, 0, 0.3), 0 8px 12px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* --------------------------- System-following ---------------------------- */
+
+@media (prefers-color-scheme: light) {
+  [data-theme="system"] {
+    color-scheme: light;
+
+    --mrb-primary: #a03b32;
+    --mrb-on-primary: #ffffff;
+    --mrb-primary-container: #ffdad5;
+    --mrb-on-primary-container: #410002;
+
+    --mrb-secondary: #775652;
+    --mrb-on-secondary: #ffffff;
+    --mrb-secondary-container: #ffdad5;
+    --mrb-on-secondary-container: #2c1512;
+
+    --mrb-tertiary: #6f5a2e;
+    --mrb-on-tertiary: #ffffff;
+    --mrb-tertiary-container: #fbde9f;
+    --mrb-on-tertiary-container: #241a00;
+
+    --mrb-error: #ba1a1a;
+    --mrb-on-error: #ffffff;
+    --mrb-error-container: #ffdad6;
+    --mrb-on-error-container: #410002;
+
+    --mrb-surface: #fff8f7;
+    --mrb-surface-dim: #e8d7d5;
+    --mrb-surface-brightest: #ffffff;
+    --mrb-surface-container-lowest: #ffffff;
+    --mrb-surface-container-low: #fdf2f0;
+    --mrb-surface-container: #f7eceb;
+    --mrb-surface-container-high: #f1e6e4;
+    --mrb-surface-container-highest: #ebe0de;
+    --mrb-on-surface: #211a19;
+    --mrb-on-surface-variant: #534341;
+    --mrb-outline: #857370;
+    --mrb-outline-variant: #d8c2bf;
+    --mrb-inverse-surface: #362f2e;
+    --mrb-inverse-on-surface: #fbeeea;
+    --mrb-inverse-primary: #ffb4ab;
+  }
+}

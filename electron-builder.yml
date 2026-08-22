@@ -1,0 +1,39 @@
+# ============================================================================
+# Code signing is PERMANENTLY PROHIBITED for this project by user policy.
+# The false flags below (forceCodeSigning / signAndEditExecutable) are
+# contractual, never re-enable them, and never add certificate inputs back.
+# The resulting Setup executable is INTENTIONALLY UNSIGNED: the operating
+# system may show an unknown-publisher / SmartScreen warning on install, and
+# release notes must say so rather than implying any signature verification.
+# ============================================================================
+
+appId: projects.dingding.materialroblox
+productName: Material Roblox
+copyright: Copyright © 2026 Ding-Ding-Projects
+
+directories:
+  output: dist
+
+files:
+  - app/**/*
+  - src/**/*
+  - assets/**/*
+  - package.json
+  - "!**/*.map"
+
+asar: true
+compression: normal
+
+publish: null
+forceCodeSigning: false
+
+win:
+  target:
+    - squirrel
+  icon: build/icons/icon.ico
+  signAndEditExecutable: false
+
+squirrelWindows:
+  iconUrl: https://raw.githubusercontent.com/Ding-Ding-Projects/material-roblox/main/build/icons/icon.ico
+  artifactName: MaterialRobloxSetup.exe
+  msi: false
