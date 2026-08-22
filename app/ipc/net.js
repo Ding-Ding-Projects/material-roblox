@@ -278,6 +278,18 @@ async function runRequest(startUrl, requestOptions) {
       if (!location) return finalizeResponse(response, lastExpectJson);
       const next = new URL(location, currentUrl);
       allowHost(next.href); // throws when a redirect tries to leave the list
+      // A session cookie must never ride a redirect off the host family it
+      // was issued for, even when the destination is otherwise allowlisted.
+      {
+        const nextHost = next.hostname.toLowerCase();
+        const stillRoblox =
+          nextHost === 'roblox.com' || nextHost.endsWith('.roblox.com') ||
+          nextHost === 'rbxcdn.com' || nextHost.endsWith('.rbxcdn.com');
+        if (!stillRoblox && requestOptions.headers && requestOptions.headers.cookie &&
+            requestOptions.headers.cookie.startsWith('.ROBLOSECURITY=')) {
+          headers = Object.fromEntries(Object.entries(headers).filter(([name]) => name !== 'cookie'));
+        }
+      }
       if (response.status === 303 || ((response.status === 301 || response.status === 302) && method === 'POST')) {
         method = 'GET';
         body = undefined;
@@ -383,7 +395,9 @@ exports.register = function register({ ipcMain }) {
     }
 
     if (payload.auth === true) {
-      const cookieValue = await readSecret('roblox', 'sessionCookie');
+      // Key must match the Session surface's VAULT_KEY ('session'); these two
+      // strings are the same secret seen from both sides of the bridge.
+      const cookieValue = await readSecret('roblox', 'session');
       if (!cookieValue) {
         throw new Error('No saved Roblox session. Open the Session tab to connect one.');
       }

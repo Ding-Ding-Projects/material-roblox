@@ -302,6 +302,12 @@ function subscribeProgress(fn) {
 
 async function readBytesBounded(item, maxBytes = 64 * 1024 * 1024) {
   if (item.srcKind === 'file' && item._fileObj) {
+    // Check the declared size BEFORE reading so oversized files never enter
+    // memory at all; re-check after read in case the handle raced.
+    const declared = Number(item._fileObj.size);
+    if (Number.isFinite(declared) && declared > maxBytes) {
+      throw new Error(`File is ${(declared / 1048576).toFixed(1)} MB and exceeds the ${maxBytes / 1048576} MB inline limit.`);
+    }
     const buf = await item._fileObj.arrayBuffer();
     if (buf.byteLength > maxBytes) throw new Error(`File exceeds the ${maxBytes / 1048576} MB inline limit.`);
     return new Uint8Array(buf);
@@ -1237,7 +1243,9 @@ async function preflightBatch(batchItems) {
         confirmLabel: tt('Overwrite files', '覆寫檔案'),
         onConfirm: () => resolve(true),
       });
-      setTimeout(() => resolve(true), 60000); // superConfirm owns dismissal; safety timeout resolves pending state
+      // Safety timeout DENIES rather than confirms: the destructive action may
+      // only run when the user completes both keys plus the full slider.
+      setTimeout(() => resolve(false), 60000);
     });
   }
   persistQueue();

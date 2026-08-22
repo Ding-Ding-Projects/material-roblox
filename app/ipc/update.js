@@ -145,6 +145,7 @@ async function doCheck(getWin) {
     notesUrl: typeof rel.html_url === 'string' ? rel.html_url : REPO_LATEST.replace('/releases/latest', '/releases'),
     assetName: asset ? asset.name : undefined,
     assetUrl: asset ? asset.browser_download_url : undefined,
+    assetDigest: asset && typeof asset.digest === 'string' ? asset.digest : undefined,
     bytesTotal: asset ? Number(asset.size) || 0 : 0,
     lastChecked: new Date().toISOString(),
   }, getWin);
@@ -163,7 +164,10 @@ function downloadAsset(getWin) {
     }
     const dir = updatesDir();
     fs.mkdirSync(dir, { recursive: true });
-    const dest = path.join(dir, String(state.assetName || 'MaterialRoblox-Setup.exe'));
+    // The name comes from a release API response: reduce it to a safe file
+    // component so it can never traverse or smuggle characters into a path.
+    const safeName = String(state.assetName || 'MaterialRobloxSetup.exe').replace(/[^A-Za-z0-9._-]/g, '_');
+    const dest = path.join(dir, safeName);
     const tmp = `${dest}.part-${process.pid}`;
     const hash = crypto.createHash('sha256');
     const ws = fs.createWriteStream(tmp);
@@ -201,6 +205,10 @@ function downloadAsset(getWin) {
         hash.update(chunk);
         ws.write(chunk, () => {});
         state.bytesDone += chunk.length;
+        if (state.bytesDone > MAX_DOWNLOAD_BYTES) {
+          fail(new Error(`download exceeded the ${MAX_DOWNLOAD_BYTES / 1048576} MB safety cap`));
+          return;
+        }
         const now = Date.now();
         if (now - lastEmit > 250) {
           lastEmit = now;
@@ -215,6 +223,14 @@ function downloadAsset(getWin) {
           if (total && Math.abs(size - total) > 4096) {
             fail(new Error(`truncated download (${size} of ${total} bytes)`));
             return;
+          }
+          // Verify against GitHub's published digest when the API supplied one.
+          if (state.assetDigest) {
+            const expected = String(state.assetDigest).replace(/^sha256:/i, '').toLowerCase();
+            if (expected && digest !== expected) {
+              fail(new Error('SHA-256 mismatch against the release digest — download discarded.'));
+              return;
+            }
           }
           fs.renameSync(tmp, dest); // same directory: atomic on completion
           setState({

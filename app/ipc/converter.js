@@ -41,10 +41,37 @@ function isPlainObj(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
-/** Absolute existing-file check that never trusts the renderer's word alone. */
+/**
+ * Path scope: a converter job may only touch locations the user granted
+ * through a native dialog this session, or the app's own data directory.
+ * This is the main-process backstop for a renderer that could otherwise
+ * aim the raw read/write primitives at any absolute path.
+ */
+const { grantedRoots } = require('./dialog.js');
+const electronApp = (() => {
+  try { return require('electron').app; } catch { return null; }
+})();
+
+function isAllowedPath(p) {
+  const resolved = path.resolve(p);
+  try {
+    const userData = electronApp ? electronApp.getPath('userData') : null;
+    if (userData && (resolved === userData || resolved.startsWith(userData + path.sep))) return true;
+  } catch { /* app not ready: fall through to grants only */ }
+  for (const root of grantedRoots) {
+    if (resolved === root || resolved.startsWith(root + path.sep)) return true;
+  }
+  return false;
+}
+
+/** Absolute existing-file check that never trusts the renderer's word alone,
+  * and never touches a location outside dialog-granted roots or userData. */
 async function assertFile(p) {
   if (typeof p !== 'string' || !path.isAbsolute(p)) {
     throw new Error('Input path must be absolute.');
+  }
+  if (!isAllowedPath(p)) {
+    throw new Error('That file was not granted through a dialog this session. Pick it again through the picker.');
   }
   const st = await fsp.stat(p).catch(() => null);
   if (!st || !st.isFile()) throw new Error(`Not a readable file: ${p}`);
@@ -53,6 +80,9 @@ async function assertFile(p) {
 
 async function assertDirWritable(p) {
   if (typeof p !== 'string' || !path.isAbsolute(p)) throw new Error('Output path must be absolute.');
+  if (!isAllowedPath(p)) {
+    throw new Error('That destination was not granted through a dialog this session. Choose it again through the save dialog.');
+  }
   const dir = path.dirname(p);
   const st = await fsp.stat(dir).catch(() => null);
   if (!st || !st.isDirectory()) throw new Error(`Output directory does not exist: ${dir}`);
@@ -83,7 +113,7 @@ function runInWorker(payload, { jobId, win, timeoutMs }) {
       return;
     }
 
-    const rec = { child, done: false };
+    const rec = { child, done: false, fail: null };
     jobs.set(jobId, rec);
 
     const finish = (fn, value) => {
@@ -99,6 +129,10 @@ function runInWorker(payload, { jobId, win, timeoutMs }) {
       send(win, 'convert:progress', { jobId, status: 'timeout', bytesDone: 0, bytesTotal: 0 });
       finish(reject, new Error('Conversion timed out.'));
     }, Math.max(5000, Number(timeoutMs) || DEFAULT_TIMEOUT_MS));
+
+    // Cancel needs a way to settle the caller's promise; without this the
+    // await would hang forever and leak the queue's concurrency slot.
+    rec.fail = (err) => finish(reject, err);
 
     child.on('message', (msg) => {
       if (!isPlainObj(msg) || msg.id !== payload.id) return;
@@ -169,6 +203,7 @@ function register(ctx) {
     if (!isPlainObj(raw)) throw new Error('Bad payload.');
     const rootDir = typeof raw.path === 'string' && path.isAbsolute(raw.path) ? raw.path : null;
     if (!rootDir) throw new Error('Directory path must be absolute.');
+    if (!isAllowedPath(rootDir)) throw new Error('That directory was not granted through a dialog this session.');
     const st = await fsp.stat(rootDir).catch(() => null);
     if (!st || !st.isDirectory()) throw new Error(`Not a directory: ${rootDir}`);
     const maxDepth = Math.min(Math.max(Number(raw.maxDepth) || MAX_EXPAND_DEPTH, 1), MAX_EXPAND_DEPTH);
@@ -224,10 +259,14 @@ function register(ctx) {
     const jobId = isPlainObj(raw) && typeof raw.jobId === 'string' ? raw.jobId : null;
     const rec = jobId && jobs.get(jobId);
     if (!rec) return { ok: false, cancelled: false };
-    rec.done = true; // stop the promise resolution path; kill below ends the work
-    try { rec.child.kill(); } catch (_) { /* nothing to kill */ }
-    jobs.delete(jobId);
     send(getWin(), 'convert:progress', { jobId, status: 'cancelled', bytesDone: 0, bytesTotal: 0 });
+    // Settle the awaiting caller first; finish() also kills the child,
+    // clears the timer and drops the job record exactly once.
+    if (typeof rec.fail === 'function') rec.fail(new Error('Conversion cancelled.'));
+    else {
+      try { rec.child.kill(); } catch (_) { /* nothing to kill */ }
+      jobs.delete(jobId);
+    }
     return { ok: true, cancelled: true };
   });
 
@@ -256,6 +295,20 @@ function register(ctx) {
       if (inputSize > MAX_B64_BYTES) throw new Error('Inline payload exceeds the 64 MB limit.');
     } else {
       throw new Error('Missing input.');
+    }
+
+    // Archive jobs carry per-entry source paths inside args: scope each one
+    // the same as a top-level input so the worker never sees an ungranted file.
+    const argEntries = isPlainObj(raw.args) && Array.isArray(raw.args.entries) ? raw.args.entries : null;
+    if (argEntries) {
+      for (const ent of argEntries) {
+        if (isPlainObj(ent) && typeof ent.inputPath === 'string' && !isAllowedPath(ent.inputPath)) {
+          throw new Error('An archive entry path was not granted through a dialog this session.');
+        }
+      }
+    }
+    if (isPlainObj(raw.args) && typeof raw.args.rootDir === 'string' && !isAllowedPath(raw.args.rootDir)) {
+      throw new Error('The archive root directory was not granted through a dialog this session.');
     }
 
     let outputPath = null;

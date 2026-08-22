@@ -136,6 +136,19 @@ export function thumbImg(url, opts = {}) {
     showFallback();
     return wrap;
   }
+  // Only platform image hosts may drive <img> requests; anything else falls
+  // back so a crafted string cannot use the surface to probe other origins.
+  {
+    let host = '';
+    try { host = new URL(url).hostname.toLowerCase(); } catch (_) { /* treated as unsafe */ }
+    const trusted =
+      host === 'roblox.com' || host.endsWith('.roblox.com') ||
+      host === 'rbxcdn.com' || host.endsWith('.rbxcdn.com');
+    if (!trusted) {
+      showFallback();
+      return wrap;
+    }
+  }
   const img = document.createElement('img');
   img.loading = 'lazy';            // allowed exception to the no-direct-fetch rule
   img.referrerPolicy = 'no-referrer';

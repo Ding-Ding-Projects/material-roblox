@@ -9,6 +9,20 @@
  */
 
 const { dialog } = require('electron');
+const path = require('path');
+
+/**
+ * Paths the user granted through a native dialog this session. Other main
+ * modules (the converter) scope their file access against this set so a
+ * compromised renderer cannot read or write arbitrary locations by calling
+ * IPC directly. Memory-only by design; grants die with the session.
+ */
+const grantedRoots = new Set();
+function grantPath(p) {
+  if (typeof p !== 'string' || !path.isAbsolute(p)) return;
+  grantedRoots.add(p);
+  grantedRoots.add(path.dirname(p));
+}
 
 const MAX_FILTERS = 16;
 const MAX_EXTENSION_LENGTH = 16;
@@ -58,6 +72,7 @@ exports.register = function register({ ipcMain, getWin }) {
       ? await dialog.showOpenDialog(parent, options)
       : await dialog.showOpenDialog(options);
     if (result.canceled || !Array.isArray(result.filePaths)) return null;
+    result.filePaths.forEach(grantPath);
     return result.filePaths;
   });
 
@@ -77,6 +92,9 @@ exports.register = function register({ ipcMain, getWin }) {
       ? await dialog.showSaveDialog(parent, options)
       : await dialog.showSaveDialog(options);
     if (result.canceled || typeof result.filePath !== 'string') return null;
+    grantPath(result.filePath);
     return result.filePath;
   });
 };
+
+exports.grantedRoots = grantedRoots;

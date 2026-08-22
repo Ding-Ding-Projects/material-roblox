@@ -69,16 +69,24 @@ async function storeCookie(value) {
   }
 }
 
-/** Remove every key under service "roblox" (used by disconnect + wipe). */
+/** Remove every key under service "roblox" (used by disconnect + wipe).
+  * Returns the keys that could not be deleted so the UI can report a
+  * partial result honestly instead of announcing a fake full wipe. */
 async function wipeVaultService() {
   let keys = [];
   try {
     const listed = await vaultInvoke('list', { service: VAULT_SERVICE });
     keys = Array.isArray(listed) ? listed : (Array.isArray(listed?.keys) ? listed.keys : []);
   } catch { /* nothing listable means nothing deletable */ }
+  const failed = [];
   for (const k of keys.map(String)) {
-    try { await vaultInvoke('delete', { service: VAULT_SERVICE, key: k }); } catch { /* keep going */ }
+    try {
+      await vaultInvoke('delete', { service: VAULT_SERVICE, key: k });
+    } catch {
+      failed.push(k);
+    }
   }
+  return { failed };
 }
 
 /* ── Connect flow ───────────────────────────────────────────────────────────── */
@@ -212,7 +220,16 @@ async function paintConnected(body) {
         `<p>${tr('roblox.session.dcDetailBody', 'Account-scoped tabs (Economy, Presence) fall back to their explain-first states until you reconnect.', '帳戶相關分頁（經濟、在線狀態）會回到「先解釋」狀態，直至你重新連接。')}</p>`,
       confirmLabel: tr('roblox.session.dcConfirm', 'Disconnect and delete cookie', '斷開並刪除 cookie'),
       action: async () => {
-        await wipeVaultService();
+        const wipe = await wipeVaultService();
+        if (wipe.failed.length) {
+          ui.toast({
+            title: voice('warn', tr('roblox.session.wipePartialTitle', 'Some vault entries could not be deleted', '有部分加密庫項目刪除唔到')),
+            body: tr('roblox.session.wipePartialBody',
+              'Failed keys: {{keys}}. Try Disconnect again, or delete the app data folder to finish the job.',
+              '失敗項目：{{keys}}。請再試一次斷開連接，或者直接刪除 App 資料夾以完成清除。').replace('{{keys}}', wipe.failed.join(', ')),
+            tone: 'warn', sticky: true,
+          });
+        }
         clearSelf();
         announce(tr('roblox.session.disconnectedAnnounce', 'Disconnected', '已斷開連接'));
         await rerenderConnect();
@@ -272,8 +289,18 @@ function clearAllCard() {
       confirmLabel: tr('roblox.session.wipeConfirmGo', 'Wipe local data', '清除本機數據'),
       action: async () => {
         // 1. Vault credentials first, so a later failure cannot leave a live
-        //    cookie behind a wiped UI.
-        await wipeVaultService();
+        //    cookie behind a wiped UI. Partial failures surface as a sticky
+        //    warning instead of an unconditional success line.
+        const wipe = await wipeVaultService();
+        if (wipe.failed.length) {
+          ui.toast({
+            title: voice('warn', tr('roblox.session.wipePartialTitle', 'Some vault entries could not be deleted', '有部分加密庫項目刪除唔到')),
+            body: tr('roblox.session.wipePartialBody',
+              'Failed keys: {{keys}}. Try again, or delete the app data folder to finish the job.',
+              '失敗項目：{{keys}}。請再試一次，或者直接刪除 App 資料夾以完成清除。').replace('{{keys}}', wipe.failed.join(', ')),
+            tone: 'warn', sticky: true,
+          });
+        }
         clearSelf();
         // 2. localStorage via the store facade when it exposes clearAll(),
         //    otherwise every mrb:-prefixed key individually.

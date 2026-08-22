@@ -103,8 +103,33 @@ export async function createSearchBar(spec) {
     // Skip re-emitting an identical query from a different trigger.
     if (value === state.lastEmitted && source !== 'programmatic') return;
     state.lastEmitted = value;
+    // Honesty gate: a surface that has not opted into regex filtering
+    // (spec.supportsRegex !== true) must never silently ignore a regex
+    // selection — say so once and downgrade to plain text instead.
+    let mode = state.mode;
+    let flags = state.flags;
+    if (mode === 'regex' && spec.supportsRegex !== true) {
+      mode = 'plain';
+      flags = '';
+      if (!state.regexDowngraded) {
+        state.regexDowngraded = true;
+        try {
+          import('../roblox/peers.js').then(({ tr }) => {
+            import('../../core/ui.js').then(({ ui }) => {
+              ui.toast({
+                title: tr('roblox.search.regexPending', 'Regex is treated as plain text here', '呢度暫時當純文字處理正則'),
+                body: tr('roblox.search.regexPendingBody',
+                  'This surface filters results locally after fetching; the pattern runs as plain text for now.',
+                  '呢個分頁係攞返結果之後先喺本地過濾；而家個式會當普通文字用。'),
+                tone: 'info', timeoutMs: 6000,
+              });
+            });
+          }).catch(() => {});
+        } catch { /* toast unavailable */ }
+      }
+    }
     try {
-      spec.onQuery(value, { mode: state.mode, flags: state.flags, source });
+      spec.onQuery(value, { mode, flags, source });
     } catch (err) {
       // A consumer bug must not break typing; surface it non-fatally.
       console.error('[roblox] search handler failed:', err);

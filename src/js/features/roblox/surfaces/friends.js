@@ -181,7 +181,9 @@ async function render(rootEl) {
       const ids = state.sel.ids().map(Number);
       if (!ids.length) return;
       runDestructiveBatch({
-        detailHtml: `<p>Remove <strong>${ids.length}</strong> selected user(s) from your saved list? This only affects this app's saved-users record; nothing happens on Roblox.</p>`,
+        detailHtml: `<p>${tr('roblox.friends.removeBody',
+          'Remove <strong>{{n}}</strong> selected user(s) from your saved list? This only affects this app\'s saved-users record; nothing happens on Roblox.',
+          '將已揀嘅 <strong>{{n}}</strong> 個用户由收藏清單移除？只會影響本 App 嘅收藏紀錄；Roblox 嗰邊唔會有任何改變。').replace('{{n}}', String(ids.length))}</p>`,
         confirmLabel: tr('roblox.friends.removeConfirm', 'Remove from saved', '從收藏移除'),
         action: () => {
           const mapById = new Map(getSavedUsers().map((u) => [u.id, u]));

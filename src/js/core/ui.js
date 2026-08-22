@@ -789,3 +789,25 @@ export function superConfirm({ title, detailHtml, confirmLabel, onConfirm }) {
 export async function init() {
   /* The toolkit is ready as soon as its module loads; init marks the boot slot. */
 }
+
+/* ------------------------------ aggregate ---------------------------------- */
+
+/**
+ * Peer modules import `{ ui }` (contract §4). The named functions above stay
+ * the primary API; this aggregate is the single object they all share so both
+ * import styles always work.
+ */
+export const ui = {
+  el,
+  injectCss,
+  toast,
+  dismissToast,
+  anchored,
+  modal,
+  superConfirm,
+  copyText,
+  fmtBytes,
+  debounce,
+  escapeHtml,
+  announce,
+};

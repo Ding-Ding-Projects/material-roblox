@@ -232,7 +232,8 @@ async function probeHealth() {
     /* Distinguish "not installed" from "installed but not running" using ONE
        allowlisted spawn probe (`ollama --version`): ENOENT means absent. */
     const probe = await invoke('ollama:spawn', {
-      profile: { exe: 'ollama', args: ['--version'], cwd: null, envKeys: [] },
+      profile: { id: 'ollama-cli-chat' },
+      intent: 'probe',
       model: '', prompt: '',
     }).catch(() => ({ ok: false, reason: 'spawn-failed', error: 'probe unavailable' }));
     const errText = String(probe.error || '');
@@ -1387,15 +1388,22 @@ function openProfileRegistration(onDone) {
             return;
           }
           const profiles = userProfiles();
-          profiles.push({
+          const newProfile = {
             id: `hp${Date.now().toString(36)}`,
             label: chosenExe.split(/[\\/]/).pop(),
             exe: chosenExe,
             args: argList,
             cwd: chosenCwd,
             envKeys: envKeySel.value ? [envKeySel.value] : [],
-          });
+          };
+          profiles.push(newProfile);
           store.set('ollamaHarnessProfiles', profiles.slice(-20));
+          // Mirror the profile into the MAIN-SIDE registry: launches are
+          // authorised by id there, so an unregistered profile cannot start.
+          invoke('ollama:profile:add', {
+            id: newProfile.id, label: newProfile.label, exe: newProfile.exe,
+            args: newProfile.args, cwd: newProfile.cwd, envKeys: newProfile.envKeys,
+          }).catch(() => { /* surfaced at launch as unknown-profile with recovery */ });
           logHarness({ kind: 'profile-registered', detail: chosenExe });
           rebuildProfiles();
           closeM();
@@ -1460,7 +1468,7 @@ async function preflightAndLaunch(profile, model) {
     if (typeof v === 'string') envValues[key] = v;
   }
 
-  const res = await invoke('ollama:spawn', { profile: { exe: profile.exe, args: profile.args, cwd: profile.cwd, envKeys: profile.envKeys || [] }, model, envValues })
+  const res = await invoke('ollama:spawn', { profile: { id: profile.id }, model, envValues })
     .catch((err) => ({ ok: false, reason: 'spawn-failed', error: String(err.message || err) }));
 
   if (!res.ok) {

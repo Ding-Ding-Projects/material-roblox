@@ -19,11 +19,53 @@
  *    this payload shape at all, so command injection has no route in.
  */
 
-const { ipcMain, net } = require('electron');
+const { ipcMain, net, app } = require('electron');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+
+/* ------------------------------------------------------------------ */
+/* Harness profile registry (MAIN-SIDE source of truth)                */
+/*                                                                    */
+/* The renderer may NAME a profile; it may never supply the executable */
+/* or argument template at launch time. Anything executing comes from  */
+/* this store, which is written only through the add channel whose     */
+/* inputs are validated below.                                        */
+/* ------------------------------------------------------------------ */
+
+const INTERPRETER_BASENAMES = new Set([
+  'cmd', 'powershell', 'pwsh', 'wscript', 'cscript', 'mshta', 'bash', 'sh', 'zsh',
+]);
+const DEFAULT_PROFILES = [{
+  id: 'ollama-cli-chat',
+  label: 'Ollama CLI chat',
+  exe: 'ollama',
+  args: ['run', '${model}'],
+  probeArgs: ['--version'],
+  cwd: null,
+  envKeys: ['OLLAMA_HOST'],
+}];
+
+function profilesFile() {
+  return path.join(app.getPath('userData'), 'harness-profiles.json');
+}
+
+function saveProfiles(list) {
+  try {
+    fs.mkdirSync(app.getPath('userData'), { recursive: true });
+    fs.writeFileSync(profilesFile(), JSON.stringify({ version: 1, profiles: list }, null, 2));
+  } catch { /* unreadable store falls back to defaults next load */ }
+}
+
+function loadProfiles() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(profilesFile(), 'utf8'));
+    if (parsed && Array.isArray(parsed.profiles)) return parsed.profiles;
+  } catch { /* first run or corrupt store */ }
+  try { saveProfiles(DEFAULT_PROFILES); } catch { /* ignore */ }
+  return DEFAULT_PROFILES.map((p) => ({ ...p }));
+}
 
 const ALLOWED_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
 const DEFAULT_PORT = 11434;
@@ -189,6 +231,13 @@ function validateProfile(profile) {
     throw new Error(`Executable does not exist: ${exe}`);
   }
 
+  const exeBase = path.basename(exe).toLowerCase().replace(/\.exe$/, '');
+  if (INTERPRETER_BASENAMES.has(exeBase)) {
+    // Belt over the registry suspenders: a shell interpreter is never a
+    // legitimate harness target even when it arrives as an absolute path.
+    throw new Error(`"${exeBase}" cannot be a harness executable.`);
+  }
+
   if (!Array.isArray(profile.args) || profile.args.length > 64) throw new Error('Arguments must be an array of at most 64 entries.');
   for (const rawArg of profile.args) {
     if (typeof rawArg !== 'string') throw new Error('Every argument must be a string.');
@@ -260,18 +309,57 @@ function register(ctx) {
     return { ok: true };
   });
 
+  ipc.handle('ollama:profile:list', async () => ({ ok: true, profiles: loadProfiles() }));
+
+  ipc.handle('ollama:profile:add', async (_ev, raw) => {
+    if (!isPlainObj(raw)) throw new Error('Bad payload.');
+    // Structural validation (exe exists, placeholder allowlist, interpreter
+    // deny-list) runs here; the renderer's picker supplies the path.
+    const candidate = {
+      id: typeof raw.id === 'string' && /^[a-z0-9-]{1,64}$/i.test(raw.id)
+        ? raw.id
+        : `hp${Date.now().toString(36)}`,
+      label: typeof raw.label === 'string' ? raw.label.slice(0, 80) : 'Harness profile',
+      exe: typeof raw.exe === 'string' ? raw.exe : '',
+      args: Array.isArray(raw.args) ? raw.args : [],
+      cwd: typeof raw.cwd === 'string' ? raw.cwd : null,
+      envKeys: Array.isArray(raw.envKeys) ? raw.envKeys : [],
+    };
+    try {
+      validateProfile(candidate);
+    } catch (err) {
+      return { ok: false, error: String(err.message || err) };
+    }
+    const list = loadProfiles();
+    const existing = list.findIndex((p) => p.id === candidate.id);
+    if (existing >= 0) list[existing] = candidate;
+    else list.push(candidate);
+    saveProfiles(list.slice(-20));
+    return { ok: true, id: candidate.id };
+  });
+
   ipc.handle('ollama:spawn', async (_ev, raw) => {
     if (!isPlainObj(raw)) throw new Error('Bad payload.');
-    validateProfile(raw.profile);
+    /* The payload names a registry entry; it never supplies what runs. */
+    const profileId = isPlainObj(raw.profile) && typeof raw.profile.id === 'string'
+      ? raw.profile.id
+      : null;
+    const record = profileId ? loadProfiles().find((p) => p.id === profileId) : null;
+    if (!record) {
+      throw new Error('Unknown harness profile. Pick or register one before launching.');
+    }
 
     const values = {
       model: typeof raw.model === 'string' ? raw.model.replace(/[\r\n"`${}]/g, '') : '',
       prompt: typeof raw.prompt === 'string' ? raw.prompt : '',
     };
-    const argv = expandArgs(raw.profile.args, values);
+    const template = raw.intent === 'probe' && Array.isArray(record.probeArgs)
+      ? record.probeArgs
+      : record.args;
+    const argv = expandArgs(template, values);
 
     const env = {};
-    for (const k of raw.profile.envKeys || []) {
+    for (const k of record.envKeys || []) {
       /* Values come from the renderer's vault-backed settings read over the
          documented vault channels; they are non-secret host config only. */
       const v = isPlainObj(raw.envValues) ? raw.envValues[k] : undefined;
@@ -281,8 +369,8 @@ function register(ctx) {
     return await new Promise((resolve) => {
       let proc;
       try {
-        proc = spawn(raw.profile.exe, argv, {
-          cwd: raw.profile.cwd || os.homedir(),
+        proc = spawn(record.exe, argv, {
+          cwd: record.cwd || os.homedir(),
           env: { ...process.env, ...env },
           shell: false,
           detached: false,
