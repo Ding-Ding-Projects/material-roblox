@@ -110,17 +110,23 @@ jobs:
 
       - name: Compute release metadata (tag + dim-sum code name)
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
         run: node scripts/release-meta.mjs "$env:GITHUB_ENV"
 
       - name: Assemble release notes
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $tag = ($env:GITHUB_ENV -split "`n" | Select-String '^TAG=').ToString().Substring(4)
-          $codeNameLine = ($env:GITHUB_ENV -split "`n" | Select-String '^CODE_NAME=')
-          $codeName = if ($codeNameLine) { $codeNameLine.ToString().Substring(10) } else { '' }
-          $photoLine = ($env:GITHUB_ENV -split "`n" | Select-String '^PHOTO_URL=')
-          $photoUrl = if ($photoLine) { $photoLine.ToString().Substring(10) } else { '' }
+          # GITHUB_ENV is the PATH of the env file, not its contents.
+          $meta = Get-Content $env:GITHUB_ENV -Raw
+          $tag = (($meta -split "`n") | Select-String '^TAG=').ToString().Substring(4).Trim()
+          $codeNameLine = (($meta -split "`n") | Select-String '^CODE_NAME=')
+          $codeName = if ($codeNameLine) { $codeNameLine.ToString().Trim() } else { '' }
+          $codeName = if ($codeName) { $codeName.Substring('CODE_NAME='.Length) } else { '' }
+          $photoLine = (($meta -split "`n") | Select-String '^PHOTO_URL=')
+          $photoUrl = if ($photoLine) { $photoLine.ToString().Trim() } else { '' }
+          $photoUrl = if ($photoUrl) { $photoUrl.Substring('PHOTO_URL='.Length) } else { '' }
 
           $endIso = (Get-Date).ToUniversalTime().ToString('o')
           $startIso = (Get-Content workflow-start.txt -Raw).Trim()
@@ -213,7 +219,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
-          $tag = ($env:GITHUB_ENV -split "`n" | Select-String '^TAG=').ToString().Substring(4)
+          $meta = Get-Content $env:GITHUB_ENV -Raw
+          $tag = (($meta -split "`n") | Select-String '^TAG=').ToString().Substring(4).Trim()
           gh release create "$tag" dist/squirrel-windows/* `
             --repo "$env:GITHUB_REPOSITORY" `
             --title "Material Roblox $tag" `
