@@ -1,5 +1,203 @@
 # Material Roblox
 
-Material Design 3 desktop explorer for the Roblox platform APIs.
+<p align="center">
+  <img src="social-preview.png" alt="Material Roblox logo: rounded-bar M mark on a deep-red to coral gradient" width="480">
+</p>
 
-> 🚧 Baseline stub — the full README lands with the shipping task. Nothing here is a claim about shipped behavior yet.
+**Material Design 3 desktop explorer for the Roblox platform APIs.**
+Browse users, friends, groups, games, marketplace, and inventories through a
+fast, local, privacy-respecting Windows app — no account required for public
+data, nothing phoning home.
+
+| | |
+| --- | --- |
+| **Install** | [Download the latest installer](https://github.com/Ding-Ding-Projects/material-roblox/releases/latest/download/MaterialRobloxSetup.exe) *(appears once the first release publishes)* |
+| **Website & docs** | https://ding-ding-projects.github.io/material-roblox/ |
+| **License** | MIT |
+| **Platform** | Windows 10+ x64 |
+
+![License](https://img.shields.io/badge/license-MIT-green) ![Platform](https://img.shields.io/badge/platform-Windows%2010%2B%20x64-blue) ![Release](https://img.shields.io/badge/release-Squirrel%20Windows-orange)
+
+> **Unsigned installer notice:** by permanent project policy this app is never
+> code-signed. Windows SmartScreen may warn about an unknown publisher — choose
+> *More info* → *Run anyway* if you trust the build. Nothing here claims
+> signature verification.
+
+## Contents
+
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Build from source](#build-from-source)
+- [Architecture](#architecture)
+- [Development contract](#development-contract)
+- [Engineering rules for agents](#engineering-rules-for-agents)
+- [Human-time estimate](#human-time-estimate)
+- [Line counts](#line-counts)
+- [FAQ](#faq)
+- [License](#license)
+
+## Features
+
+<details open>
+<summary><strong>Everything the app ships</strong></summary>
+
+**Roblox explorer** — user lookup with avatar renders · friends/followers
+lists with bulk export · group info, roles, and public shout walls · game and
+universe details with stats and badges · catalog/marketplace search with
+filters and limited/serial info · public inventories by asset type ·
+economy + presence surfaces behind an opt-in session · two-user compare ·
+session manager storing your cookie in the OS credential vault.
+
+**Interface** — dockable browser-style tab strip (pin, groups, discovery
+searches, bulk close, persistence) · `Ctrl+Shift+F` command palette with rich
+setting rows and teleport-to-element · full regex builder anchored beside every
+search field, dropdown, and context menu · non-blocking notifications with a
+reviewable centre · bulk actions on every list · exports in JSON, JSONL, YAML,
+TOML, XML, CSV, TSV, Markdown, HTML, SQL, and ZIP · Git-backed local history
+with date/action filters · in-app changelog viewer with calendar filter and
+commit links.
+
+**Appearance** — full Material Design 3 conformance · light/dark/system themes
+· density control · accent seed via an infinite colour picker (continuous
+picker, bidirectional colour-space translator, animated rainbow option) ·
+word-processor-depth typography editing · per-element *Edit appearance…* on
+every surface · app-logo presets plus bounded local custom-logo conversion.
+
+**Safety** — destructive-action super confirmation (two independent keys plus
+a full-range slider) · per-element toy locks with honest self-service recovery
+· unlock ladder that clears waiting without ever clearing credentials ·
+built-in RFC 6238 authenticator with in-process QR pairing · Support Tickets
+desk that never sends anything anywhere.
+
+**Personalization** — English / playful Cantonese / bilingual modes ·
+independent funny-level sliders per language · School mode (one shared,
+renamable switch) · personal vocabulary upload · opt-in narrator with
+per-language voice pickers · five ADHD accommodations · dim sum surprise ·
+scheduled settings with external sources.
+
+**Platform** — local file converter with a categorized adapter catalog ·
+Ollama suite manager (exhaustive local catalog, evidence-backed hardware-fit
+verdicts, batch pulls) · Chrome-style auto-updater over an unsigned feed ·
+CI-counted line statistics in every release · status reporting · Open Graph
+embed graphic.
+
+</details>
+
+## Screenshots
+
+Real built-artifact captures are **pending by deliberate decision** — the
+ultra-speed delivery pass skipped screenshot evidence to ship fast, and no
+placeholder image is published in its place. See [ROADMAP.md](ROADMAP.md)
+Phase 2 for the tracked capture work. The tables below name what will be
+captured:
+
+| Surface | State to capture |
+| --- | --- |
+| Home / hero | dark theme, default accent |
+| Roblox user lookup | populated profile card |
+| Tab strip + palette | `Ctrl+Shift+F` open over content |
+| Settings | appearance group, bilingual mode |
+| Colour picker | rainbow sentinel active |
+| Authenticator | QR pairing screen |
+
+## Build from source
+
+```bat
+git clone https://github.com/Ding-Ding-Projects/material-roblox.git
+cd material-roblox
+build.bat
+```
+
+`build.bat` installs every dependency it needs (Node, npm packages, Electron
+runtime) into user-scoped locations, then builds and offers to run the app.
+`build.bat /s` runs the same path silently for CI and agents.
+`build-installer.bat` produces the same unsigned Squirrel installer the
+release workflow publishes.
+
+| Script | Purpose |
+| --- | --- |
+| `scripts/ensure-electron.mjs` | Materialize the pinned Electron binary |
+| `scripts/gen-icons.mjs` | Generate app icon assets |
+| `scripts/gen-social-preview.mjs` | Draw + byte-verify the Open Graph image pair |
+| `scripts/count-lines.mjs` | The exact line-count table releases publish |
+| `scripts/build-changelog.mjs` | Changelog data from git tags |
+| `scripts/build-docs-index.mjs` | Docs index + site copy of feature articles |
+| `scripts/release-meta.mjs` | Release tag + once-per-project dim-sum code name |
+| `scripts/fetch-fonts.mjs` | Optional complete font vendoring (never run by CI) |
+| `scripts/check-vocabulary.mjs` | Vocabulary hash lock method (see below) |
+
+## Architecture
+
+Electron 33 with a vanilla-JS ES-module renderer — no UI frameworks, no CDN
+assets, everything bundled at build time. The main process owns all network
+access through an allowlisted proxy channel; the renderer talks to it via one
+validated generic bridge. Secrets live only in the OS credential vault.
+Module boundaries, IPC channels, and export contracts are specified in the
+[development contract](docs/dev/CONTRACT.md).
+
+## Development contract
+
+All lanes work from [`docs/dev/CONTRACT.md`](docs/dev/CONTRACT.md) — the single
+source of truth for ownership maps, IPC channel names, core-module exports,
+bootstrap order, CSS conventions, i18n conventions, and accessibility minimums.
+If code and contract disagree, one of them is fixed in the same change.
+
+## Engineering rules for agents
+
+See [AGENTS.md](AGENTS.md) — a sanitized mirror of the shared engineering rules
+governing work in this repository (ordinary English only; the canonical rules
+live elsewhere).
+
+## Human-time estimate
+
+> **Estimate — not a measurement.** Nobody built this by hand; the figure below
+> is arithmetic on counted lines, shown so the scale is checkable rather than
+> asserted.
+>
+> **Method:**
+> ```
+> hand-written lines (from scripts/count-lines.mjs, exclusions stated)
+>   × assumed rate: 200 lines/hour for routine UI code
+>   × 1.6 multiplier for the parts that are genuinely harder than their size
+>     (crypto, TOTP/QR, sandboxed conversion, i18n breadth)
+>   = person-hours  →  ÷ 160 = person-months
+> ```
+>
+> **Result: `<populated at first release>`** — this box is filled by the
+> release workflow from the same counted lines it publishes, so the estimate
+> and the count can never disagree.
+
+## Line counts
+
+Every release publishes the full table (per-area lines, non-blank lines,
+exclusions with reasons, and agent-vs-human attribution by surviving
+`git blame` lines). Reproduce locally:
+
+```bat
+node scripts\count-lines.mjs
+```
+
+## FAQ
+
+**Is this affiliated with Roblox Corporation?**
+No. Material Roblox is an independent, open-source explorer of publicly
+documented platform APIs and is not affiliated with, endorsed by, or connected
+to Roblox Corporation.
+
+**Why is the installer unsigned?**
+Permanent project policy: no certificates, no signing services, ever. The
+trade-off is stated everywhere it matters — SmartScreen will warn, and the
+release notes say so plainly rather than claiming authenticity.
+
+**Does it need an account?**
+Only for the economy and presence surfaces. Everything else works with public
+data; connecting a session is optional, clearly explained, and revocable in
+one click.
+
+**Where does my data go?**
+Nowhere. No telemetry, no analytics, no crash reporting. Network access is
+allowlisted to Roblox API hosts and this repository's own Releases.
+
+## License
+
+[MIT](LICENSE) — © 2026 Ding-Ding-Projects and contributors.

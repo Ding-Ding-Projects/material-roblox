@@ -1,0 +1,15 @@
+#!/bin/sh
+# Sample pre-push hook for the vocabulary hash lock.
+#
+# Install (deliberately, per machine — this repository never sets
+# core.hooksPath itself):
+#
+#   mkdir -p .githooks
+#   cp hooks/pre-push.sample .githooks/pre-push
+#   chmod +x .githooks/pre-push
+#   git config core.hooksPath .githooks
+#
+# The hook fails closed when a private dictionary is present but stale, and
+# passes silently for outsiders with no private source configured.
+
+node scripts/check-vocabulary.mjs

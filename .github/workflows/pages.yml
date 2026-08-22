@@ -1,0 +1,75 @@
+# GitHub Pages deployment for the Material Roblox landing/docs site.
+#
+# This workflow only ever publishes the static site. Per standing policy it
+# runs no tests and no lint; the site build is data generation (docs index,
+# changelog, status placeholder, social preview) plus artifact upload.
+#
+# Validation-style workflows elsewhere would use cancel-in-progress; this one
+# is a publishing workflow with no side effects beyond the Pages deployment
+# itself, and the brief for it specifies cancel-in-progress TRUE so a rapid
+# push sequence never queues stale deployments.
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # changelog builder reads tags + commit logs
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies (for build scripts)
+        run: npm ci
+
+      - name: Generate social preview (root + site copies, byte-identical)
+        run: node scripts/gen-social-preview.mjs
+
+      - name: Build changelog data
+        run: node scripts/build-changelog.mjs
+
+      - name: Build docs index and copy articles
+        run: node scripts/build-docs-index.mjs
+
+      - name: Write status placeholder
+        run: |
+          node -e "const fs=require('fs');fs.writeFileSync('site/status.json',JSON.stringify({generatedAt:new Date().toISOString(),source:'pages workflow',runs:[]},null,2)+'\n')"
+
+      - name: List site payload
+        run: find site -maxdepth 2 -type f | sort | head -60
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
