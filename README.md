@@ -163,11 +163,16 @@ live elsewhere).
 >   = person-hours  →  ÷ 160 = person-months
 > ```
 >
-> **Result: `<populated at first release>`** — this box is filled by the
-> release workflow from the same counted lines it publishes, so the estimate
-> and the count can never disagree.
+> **Result (from release v1.0.0-build.7):** 42,620 non-blank hand-written
+> project lines ÷ 200 × 1.6 ≈ **341 person-hours ≈ 2.1 person-months**.
+> Arithmetic: 42620 / 200 = 213.1 h; × 1.6 = 341 h; ÷ 160 h/month ≈ 2.13 months.
+> The inputs come from the same counted lines the release publishes, so the
+> estimate and the count cannot disagree. Treat it as an estimate, not a fact.
 
 ## Line counts
+
+Latest published figure — [release v1.0.0-build.7](https://github.com/Ding-Ding-Projects/material-roblox/releases/tag/v1.0.0-build.7):
+**47,593 project lines (42,620 non-blank)** across 152 files — app source 32,244 · styles 5,583 · site 4,558 · docs 3,040 · scripts 1,770 · workflows 330. Tests are deliberately absent in this pass and the table says so.
 
 Every release publishes the full table (per-area lines, non-blank lines,
 exclusions with reasons, and agent-vs-human attribution by surviving
