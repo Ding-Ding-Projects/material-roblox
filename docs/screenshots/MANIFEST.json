@@ -1,0 +1,56 @@
+[
+  {
+    "file": "01-home-boot.png",
+    "surface": "Home / boot state",
+    "state": "boot settled, default landing (Personal vocabulary panel), dark theme, non-blocking 'failed' API toast visible because the capture sandbox has no Roblox network access",
+    "commitSha": "8362077",
+    "captureRoute": "lowlevel-headless-desktop",
+    "verified": "non-uniform pixels, 6 distinct sampled colours at 12x8 grid",
+    "note": "window hwnd 4722328 resolved by class Chrome_WidgetWin_1 + title 'Material Roblox' + 1280x800"
+  },
+  {
+    "file": "02-tab-strip-users.png",
+    "surface": "Users tab (tab strip)",
+    "state": "Users tab active via background mouse_click on the strip; lookup field with Plain/regex affordance and honest empty state",
+    "commitSha": "8362077",
+    "captureRoute": "lowlevel-headless-desktop",
+    "verified": "non-uniform pixels, 8 distinct sampled colours",
+    "note": "background click at client coords 105,503"
+  },
+  {
+    "file": "03-settings-appearance.png",
+    "surface": "Settings > Appearance",
+    "state": "Settings surface with own search bar; Appearance sub-tab active; accent seed colour, density select, font-size slider, provenance defaults, per-setting reset",
+    "commitSha": "8362077",
+    "captureRoute": "lowlevel-headless-desktop",
+    "verified": "non-uniform pixels, 7 distinct sampled colours",
+    "note": "default sub-tab was School; Appearance sub-tab clicked so the file shows what it claims"
+  },
+  {
+    "file": "04-authenticator.png",
+    "surface": "Authenticator tab",
+    "state": "FAILED STATE: error boundary 'This tab could not load. Cannot access updateBulkBar before initialization' with Retry; retry reproduced deterministically",
+    "commitSha": "8362077",
+    "captureRoute": "lowlevel-headless-desktop",
+    "verified": "non-uniform pixels, 8 distinct sampled colours",
+    "note": "defect: src/js/core/authenticator.js calls updateBulkBar() at lines 472/481 before its const definition at line 526 (temporal dead zone); healthy QR-pairing capture still pending"
+  },
+  {
+    "file": "05-palette-open.png",
+    "surface": "Command palette (Ctrl+Shift+F)",
+    "state": "palette open over content: search input with Plain/regex toggle, rich rows with inline live controls, hints footer, Full window toggle",
+    "commitSha": "8362077",
+    "captureRoute": "lowlevel-headless-desktop",
+    "verified": "non-uniform pixels, 9 distinct sampled colours",
+    "note": "background win_send_keys Ctrl+Shift+F did not land (known Chromium background-key limitation); opened through CDP Runtime.evaluate dispatching the window-level 'mrb-open-palette' CustomEvent after document-level dispatch failed to reach the window listener"
+  },
+  {
+    "file": "06-converter.png",
+    "surface": "Converter tab",
+    "state": "Converter active: queue controls, honest 'queue empty' chip, local-only drop zone, categorized adapter catalog with bundled counts including unbundled gaps",
+    "commitSha": "8362077",
+    "captureRoute": "lowlevel-headless-desktop",
+    "verified": "non-uniform pixels, 11 distinct sampled colours",
+    "note": "strip button below scroll fold; activated via real DOM click on the #mrb-tabstrip Converter button through CDP (documented deviation from mouse_click)"
+  }
+]
