@@ -211,8 +211,11 @@ function rgbToHsl(r, g, b) {
   return [h, s, l];
 }
 function hslToRgb(h, s, l) {
+  // CSS Color 4: C = (1 - |2L - 1|) * S, then V = L + C/2 drives the HSV core.
+  // Passing L itself as the value halves every chromatic colour.
   const c = (1 - Math.abs(2 * l - 1)) * s;
-  return hsvToRgb(h, l === 0 || l === 1 ? 0 : c / (1 - Math.abs(2 * l - 1)), l);
+  const v = l + c / 2;
+  return hsvToRgb(h, v === 0 ? 0 : c / v, v);
 }
 function rgbToHwb(r, g, b) {
   const [h] = rgbToHsv(r, g, b);
@@ -246,7 +249,10 @@ function cmykToRgb(c, m, y, k) {
 /* Parsing                                                             */
 /* ------------------------------------------------------------------ */
 
-const NUM_RE = /[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?%?|deg/g;
+/* A number may carry a % or deg suffix; the suffix must ride ON the number
+ * token. Matching a bare "deg" as its own alternative used to inject a NaN
+ * channel and shift every following channel of the function. */
+const NUM_RE = /[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?(?:%|deg)?/g;
 
 function numbers(str) {
   const out = [];
@@ -298,7 +304,9 @@ export function parse(input) {
     } else {
       return { ok: false, error: 'hex must be 3, 4, 6 or 8 digits' };
     }
-    return fin(r, g, b, a, 'hex');
+    // Display-referred values must be linearised before fin(), which
+    // expects linear RGB and re-encodes on the way out.
+    return fin(srgbToLinear(r), srgbToLinear(g), srgbToLinear(b), a, 'hex');
   }
 
   const m = /^([a-z]+)\s*\(/.exec(s);
@@ -312,31 +320,31 @@ export function parse(input) {
       if (ns.length < 3) return bad('rgb needs 3 channels');
       const p = (i, sc) => (ns[i].pct ? ns[i].v / 100 : ns[i].v / sc);
       const a = alphaFrom(ns, 3);
-      return fin(p(0, 255), p(1, 255), p(2, 255), a, name);
+      return fin(srgbToLinear(p(0, 255)), srgbToLinear(p(1, 255)), srgbToLinear(p(2, 255)), a, name);
     }
     case 'hsl': case 'hsla': {
       if (ns.length < 3) return bad('hsl needs 3 channels');
       const a = alphaFrom(ns, 3);
       const [r, g, b] = hslToRgb(ns[0].v, clampPct(ns[1]), clampPct(ns[2]));
-      return fin(r, g, b, a, name);
+      return fin(srgbToLinear(r), srgbToLinear(g), srgbToLinear(b), a, name);
     }
     case 'hsv': case 'hsb': case 'hsba': {
       if (ns.length < 3) return bad('hsv/hsb needs 3 channels');
       const a = alphaFrom(ns, 3);
       const [r, g, b] = hsvToRgb(ns[0].v, clampPct(ns[1]), clampPct(ns[2]));
-      return fin(r, g, b, a, name);
+      return fin(srgbToLinear(r), srgbToLinear(g), srgbToLinear(b), a, name);
     }
     case 'hwb': {
       if (ns.length < 3) return bad('hwb needs 3 channels');
       const a = alphaFrom(ns, 3);
       const [r, g, b] = hwbToRgb(ns[0].v, clampPct(ns[1]), clampPct(ns[2]));
-      return fin(r, g, b, a, name);
+      return fin(srgbToLinear(r), srgbToLinear(g), srgbToLinear(b), a, name);
     }
     case 'cmyk': {
       if (ns.length < 4) return bad('cmyk needs 4 channels');
       const a = alphaFrom(ns, 4);
       const [r, g, b] = cmykToRgb(clampPct(ns[0]), clampPct(ns[1]), clampPct(ns[2]), clampPct(ns[3]));
-      return fin(r, g, b, a, name);
+      return fin(srgbToLinear(r), srgbToLinear(g), srgbToLinear(b), a, name);
     }
     case 'lab': case 'cielab': {
       if (ns.length < 3) return bad('lab needs L a b');

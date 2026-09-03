@@ -13,7 +13,8 @@
     "icons": "node scripts/gen-icons.mjs",
     "predist": "npm run ensure-electron && npm run icons",
     "dist": "electron-builder --win squirrel --publish never",
-    "count-lines": "node scripts/count-lines.mjs"
+    "count-lines": "node scripts/count-lines.mjs",
+    "test": "node --test \"tests/**/*.test.mjs\""
   },
   "dependencies": {
     "fflate": "^0.8.2",

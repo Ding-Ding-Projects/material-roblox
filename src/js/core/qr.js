@@ -51,18 +51,20 @@ function rsGeneratorPoly(degree) {
 
 /** RS ECC codewords for `degree` check symbols over `data`. */
 function rsComputeEcc(data, degree) {
-  // Generator polynomial is stored with the CONSTANT term at index 0; the
-  // implicit leading monomial's contribution is what `factor` already
-  // extracts, so only indices 0..degree-1 fold back into the remainder.
+  // Standard MSB-first LFSR division: the feedback taps the TOP register slot
+  // (the x^(degree-1) coefficient about to overflow), the register shifts UP,
+  // and the generator — stored CONSTANT-term-first — folds in at every slot.
+  // The previous loop tapped the bottom slot while shifting left, which
+  // computed a plausible-looking but wrong remainder for every block.
+  // Returns the remainder ASCENDING (constant term first).
   const gen = rsGeneratorPoly(degree);
   const result = new Array(degree).fill(0);
   for (const b of data) {
-    const factor = b ^ result[0];
-    result.copyWithin(0, 1);
-    result[degree - 1] = 0;
-    if (factor !== 0) {
-      for (let i = 0; i < degree; i++) result[i] ^= gfMul(gen[i], factor);
+    const factor = b ^ result[degree - 1];
+    for (let i = degree - 1; i > 0; i--) {
+      result[i] = result[i - 1] ^ (factor !== 0 ? gfMul(gen[i], factor) : 0);
     }
+    result[0] = factor !== 0 ? gfMul(gen[0], factor) : 0;
   }
   return result;
 }
@@ -104,7 +106,9 @@ const ALIGNMENT_CENTERS = [
 ];
 
 function dataSizeCodewords(version) {
-  return BLOCKS_M[version - 1].reduce((sum, [, , data]) => sum + data, 0);
+  // Each row is [blockCount, totalPerBlock, dataPerBlock]: capacity counts
+  // every block's data codewords, not just one block's.
+  return BLOCKS_M[version - 1].reduce((sum, [count, , data]) => sum + count * data, 0);
 }
 
 function maxBytesForVersion(version) {
@@ -158,7 +162,10 @@ function addEccAndInterleave(data, version) {
       const block = data.slice(offset, offset + dataLen);
       offset += dataLen;
       blocks.push(block);
-      eccs.push(Uint8Array.from(rsComputeEcc(Array.from(block), ecLen)));
+      // rsComputeEcc returns its remainder constant-term-first; the QR bit
+      // stream transmits remainder coefficients highest-degree-first, so
+      // reverse here or every scanner rejects the ECC.
+      eccs.push(Uint8Array.from(rsComputeEcc(Array.from(block), ecLen)).reverse());
     }
   }
   const maxData = Math.max(...blocks.map((b) => b.length));
