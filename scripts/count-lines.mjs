@@ -156,7 +156,7 @@ let humanLines = 0;
 let unattributed = 0;
 if (blameAvailable) {
   for (const f of allFiles) {
-    const bucket = BUCKETS.find((x) => x.id !== 'tests' && x.match(f));
+    const bucket = BUCKETS.find((x) => x.match(f));
     if (!bucket) continue;
     const shas = blameShas(f);
     if (!shas) { unattributed += countLines(f).lines; continue; }

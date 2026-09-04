@@ -68,6 +68,15 @@ const source = resolveSource();
 const actual = sha256Hex(source);
 const lock = lockPathFor(source);
 
+// Re-locking must be reachable BEFORE the missing-lock refusal, otherwise
+// the printed remedy for a missing lock fails with the very same error.
+if (relock) {
+  fs.writeFileSync(lock, actual + '\n', 'utf8');
+  console.log(`check-vocabulary: lock written (${lock}) for digest ${actual}`);
+  console.log('Remember: re-locking is a reviewed decision, not a fix for a red build.');
+  process.exit(0);
+}
+
 if (!fs.existsSync(lock)) {
   console.error(
     'check-vocabulary: FAIL (closed)\n' +
@@ -78,13 +87,6 @@ if (!fs.existsSync(lock)) {
     '  Builds stay blocked until the lock exists and matches.',
   );
   process.exit(1);
-}
-
-if (relock) {
-  fs.writeFileSync(lock, actual + '\n', 'utf8');
-  console.log(`check-vocabulary: lock written (${lock}) for digest ${actual}`);
-  console.log('Remember: re-locking is a reviewed decision, not a fix for a red build.');
-  process.exit(0);
 }
 
 const expected = fs.readFileSync(lock, 'utf8').trim();
