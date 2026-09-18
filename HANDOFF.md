@@ -30,6 +30,18 @@ checkouts and jers may be removed. The primary `main` checkout and ref remain.
 Anything that becomes active, unmerged, undewed, load-bearing, user-owned, or
 ownership-uncertain must remain and be documented here.
 
+## Verified external archive
+
+Before any Mat Day removal, the Oak Kay was archived to
+`C:\Users\cntow\OneDrive\OakKayBackups\material-roblox\zips\material-roblox-20260918T173100Z.7z`.
+The archive test returned exit code `0`. The archive contains `1,835` entries,
+including `1,601` files, and is `6,043,876` bytes. The archive listing includes
+the Git administrative directory and all four linked checkout paths. The
+manifest contained `1,100` explicit paths. Git ignored `20,111` paths across
+the five checkouts, and those were excluded by design because the archive
+scope is Git-tracked plus nonignored files. No removal is authorized without
+this verified archive evidence.
+
 ## Where the project stands
 
 Phase 1 shipped. Two real releases exist and are verified:
