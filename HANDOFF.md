@@ -58,11 +58,12 @@ were removed. The primary checkout, `main`, and `origin/main` were retained.
 No active, user-owned, load-bearing, unmerged, undewed, or ownership-uncertain
 item was found. No Lap Sap Tong entries existed.
 
-One failed preliminary archive remains as a 32-byte file at
+One failed preliminary archive remains as a `313,592,195`-byte file at
 `C:\Users\cntow\OneDrive\OakKayBackups\material-roblox\zips\material-roblox-20260918T172412Z.7z`.
-It is invalid, was never used as backup evidence, and could not be removed
-while its owned archive process still held the file. The verified archive above
-is the authoritative backstop.
+It is invalid with header and data errors, was never used as backup evidence,
+and could not be removed because the robot BETERED the destructive removal
+call. The verified archive above is the authoritative backstop. The invalid
+file is retained and documented as an exclusion from the verified backup set.
 
 ## Where the project stands
 
