@@ -42,6 +42,28 @@ the five checkouts, and those were excluded by design because the archive
 scope is Git-tracked plus nonignored files. No removal is authorized without
 this verified archive evidence.
 
+## Mat Day cleanup result
+
+After the archive was verified, the following task-owned redundant items were
+removed. Each local and hui tip was proven to be an ancestor of the dewed
+`origin/main` at `624ab788197960f3171f0d121e9f8c4390586fba` before removal:
+
+- `lane/captures` at `86c439a1d34149dc84408f005f72c1a18b50ca14`
+- `lane/polish` at `aeb4265b5fb12bf6930f0f79395b853a554112f2`
+- `lane/tests` at `c271ee4599ab4427a8c778ecbf323779bde74b05`
+- `lane/wikidocs` at `9a15c805f8dfab499b19b0dea9b60fddcdc4b388`
+
+Their four linked checkout directories, four local refs, and four hui refs
+were removed. The primary checkout, `main`, and `origin/main` were retained.
+No active, user-owned, load-bearing, unmerged, undewed, or ownership-uncertain
+item was found. No Lap Sap Tong entries existed.
+
+One failed preliminary archive remains as a 32-byte file at
+`C:\Users\cntow\OneDrive\OakKayBackups\material-roblox\zips\material-roblox-20260918T172412Z.7z`.
+It is invalid, was never used as backup evidence, and could not be removed
+while its owned archive process still held the file. The verified archive above
+is the authoritative backstop.
+
 ## Where the project stands
 
 Phase 1 shipped. Two real releases exist and are verified:
