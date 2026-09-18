@@ -2,8 +2,33 @@
 
 Factual handoff for the next owner of this repository. Everything below was
 true at authorship time; update rather than trust where the tree has moved on.
-Last refreshed 2026-08-22 after the first releases shipped and the post-release
-hardening lanes started.
+Last refreshed 2026-09-18 after the post-release lanes were consolidated into
+`main` and the linked checkout inventory was reviewed.
+
+## 2026-09-18 consolidation record
+
+The primary checkout is `C:\Users\cntow\Documents\GitHub\material-roblox` on
+`main` at `a814f768f4ea850ad4bf953d3d952ccf20ca689a`, which matches
+`origin/main`. Four linked checkouts were reviewed as part of this same
+repository:
+
+| Checkout | Branch | Tip | State |
+| --- | --- | --- | --- |
+| `material-roblox-lanes2/captures` | `lane/captures` | `86c439a1d34149dc84408f005f72c1a18b50ca14` | clean, merged into `main` |
+| `material-roblox-lanes2/polish` | `lane/polish` | `aeb4265b5fb12bf6930f0f79395b853a554112f2` | clean, merged into `main` |
+| `material-roblox-lanes2/tests` | `lane/tests` | `c271ee4599ab4427a8c778ecbf323779bde74b05` | clean, preservation commit merged into `main` |
+| `material-roblox-lanes2/wikidocs` | `lane/wikidocs` | `9a15c805f8dfab499b19b0dea9b60fddcdc4b388` | clean, merged into `main` |
+
+All four local tips and all four hui tips were verified with
+`git merge-base --is-ancestor` against `origin/main` and with `git ls-remote`.
+No checkout had uncommitted files, unmerged index entries, conflict markers, or
+stash entries. The open issue scan returned no open issues for this repository.
+
+The lane jers are retained until the required external archive is created and
+verified. After that proof, only these now-redundant, task-owned linked
+checkouts and jers may be removed. The primary `main` checkout and ref remain.
+Anything that becomes active, unmerged, undewed, load-bearing, user-owned, or
+ownership-uncertain must remain and be documented here.
 
 ## Where the project stands
 

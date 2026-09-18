@@ -57,24 +57,23 @@ and `lane/captures` are in flight against this tree.
       adapters; Ollama suite manager; Chrome-style auto-updater over an
       unsigned feed
 
-## Phase 1.5 — Post-release hardening (2026-08-22, in flight)
+## Phase 1.5 — Post-release hardening (2026-09-18 consolidation)
 
 Four parallel lanes opened immediately after the first releases
-(`v1.0.0-build.7`, `v1.0.0-build.8`). Everything here is unticked on purpose:
-a row moves to `[x]` only when its lane's work is merged and its evidence
-exists, never because the lane started.
+(`v1.0.0-build.7`, `v1.0.0-build.8`). Their commits are now present in `main`.
+Evidence claims remain conservative: merging a lane does not by itself verify
+the behaviour it was intended to cover.
 
-- [ ] **Tests lane** — automated unit + interaction suites for the Phase 1
-      modules, wired so their verdicts are reported (never gating CI, per the
-      standing no-gate decision)
-- [ ] **Captures lane** — real built-artifact screenshot evidence for every
-      user-facing surface; nothing fake published meanwhile
-- [ ] **Polish fixes lane** — the fix batch from the post-release adversarial
-      review, verified against the built app
-- [ ] **Wiki/docs lane** — `docs/wiki/` five-page mirror authored in-repo;
-      remains unticked until the wiki is initialized in the web UI and the
-      pages are actually copied up (the wiki remote 404s until the first
-      page exists — see `docs/wiki/README.md`)
+- [~] **Tests lane** — preservation commit `c271ee4` is merged into `main`;
+      an executed unit and interaction verdict is still not recorded
+- [~] **Captures lane** — capture commit `86c439a` is merged into `main`;
+      the captured surfaces are present, while the full evidence matrix is
+      still not independently verified here
+- [~] **Polish fixes lane** — polish commit `aeb4265` is merged into `main`;
+      built-artifact verification remains a separate open item
+- [~] **Wiki/docs lane** — wiki and record commit `9a15c80` is merged into
+      `main`; the web UI wiki initialization and copy-up remain manual
+      (`docs/wiki/README.md` records the route)
 
 ## Phase 2 — Verification debt (deliberate, named)
 
